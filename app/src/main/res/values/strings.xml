@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Konvert</string>
+    <string name="pin_user_display_name">Yevhenii</string>
+    <string name="pin_greeting">З поверненням, %1$s!</string>
+    <string name="pin_enter_prompt">Уведіть ПІН-код</string>
+    <string name="pin_forgot">Забули ПІН-код?</string>
+    <string name="pin_avatar_content_description">Аватар користувача</string>
+    <string name="pin_biometric_content_description">Біометрія</string>
+    <string name="pin_backspace_content_description">Стерти</string>
+    <!-- Головний екран (після PIN) -->
+    <string name="home_profile_cd">Профіль</string>
+    <string name="home_chat_cd">Чат</string>
+    <string name="home_bonus_cd">Бонуси</string>
+    <string name="home_balance_main">102 144 ₴</string>
+    <string name="home_balance_wallet">2 144 ₴</string>
+    <string name="home_balance_credit">100 000 ₴</string>
+    <string name="home_all_cards">Усі картки</string>
+    <string name="home_card_placeholder">Карта Konvert</string>
+    <string name="home_card_stub">Динамічна картка — згодом</string>
+
+    <string name="home_action_transfer">Переказати на картку</string>
+    <string name="home_action_iban">Платіж за IBAN</string>
+    <string name="home_action_other">Інші платежі</string>
+
+    <string name="home_operations_title">Операції</string>
+    <string name="home_operations_all">Усі</string>
+    <string name="home_operations_expand">Усі операції</string>
+    <string name="home_op_steam">Steam</string>
+    <string name="home_op_steam_amount">-100 ₴</string>
+    <string name="home_op_card">537552****2293</string>
+    <string name="home_op_card_amount">-26 500 ₴</string>
+    <string name="home_op_mcd">McDonald\'s</string>
+    <string name="home_op_mcd_amount">-556.00 ₴</string>
+
+    <string name="home_limits_left">Ліміти та обмеження</string>
+    <string name="home_limits_right">Тим, хто за кордоном</string>
+
+    <string name="home_useful_title">Корисне</string>
+    <string name="home_rate_usd_title">Долар США</string>
+    <string name="home_rate_usd_values">43.25 / 43.65</string>
+    <string name="home_rate_eur_title">Євро</string>
+    <string name="home_rate_eur_values">50.62 / 51.27</string>
+    <string name="home_useful_support">Служба підтримки</string>
+    <string name="home_useful_faq">Поширені запитання</string>
+    <string name="home_useful_statements">Виписки та довідки</string>
+    <string name="home_useful_tariffs">Умови і тарифи</string>
+
+    <string name="home_nav_cards">Картки</string>
+    <string name="home_nav_credits">Кредити</string>
+    <string name="home_nav_savings">Накопичення</string>
+    <string name="home_nav_more">Ще</string>
+    <string name="home_nav_market">Маркет</string>
+</resources>
