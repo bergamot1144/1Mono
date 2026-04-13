@@ -6,13 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.konvert.app.ui.home.HomeScreen
-import com.konvert.app.ui.lock.PinLockScreen
+import com.konvert.app.ui.BankingEntryHost
 import com.konvert.app.ui.theme.KonvertTheme
 
 class MainActivity : ComponentActivity() {
@@ -22,12 +17,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             KonvertTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    var unlocked by remember { mutableStateOf(false) }
-                    if (!unlocked) {
-                        PinLockScreen(onUnlocked = { unlocked = true })
-                    } else {
-                        HomeScreen()
-                    }
+                    BankingEntryHost()
                 }
             }
         }

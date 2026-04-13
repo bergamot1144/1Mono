@@ -1,5 +1,7 @@
 package com.konvert.app.ui.lock
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -18,7 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Backspace
-import androidx.compose.material.icons.outlined.Face
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,7 +32,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,6 +50,8 @@ import com.konvert.app.R
 import com.konvert.app.ui.theme.AvatarPlaceholder
 import com.konvert.app.ui.theme.ErrorTint
 import com.konvert.app.ui.theme.GreetingText
+import com.konvert.app.ui.theme.PinBackspaceCircleFill
+import com.konvert.app.ui.theme.PinBackspaceCirclePressed
 import com.konvert.app.ui.theme.PinDotEmpty
 import com.konvert.app.ui.theme.PinDotFilled
 import com.konvert.app.ui.theme.PinPromptText
@@ -49,6 +60,34 @@ import com.konvert.app.ui.theme.TextPrimary
 import kotlinx.coroutines.delay
 
 private const val CorrectPin = "9999"
+
+/** `assets/face-id_negate.png` (або `face_id_negate.png`, `operations_logos/…`). */
+private const val PinFaceIdNegateAsset = "face-id_negate.png"
+private const val PinFaceIdNegateAssetUnderscore = "face_id_negate.png"
+
+private const val PinOperationsLogosPath = "operations_logos"
+private const val PinFaceIdNegateInOperationsLogos = "$PinOperationsLogosPath/face-id_negate.png"
+private const val PinFaceIdNegateInOperationsLogosUnderscore = "$PinOperationsLogosPath/face_id_negate.png"
+
+@Composable
+private fun rememberFaceIdNegateBitmap(): ImageBitmap? {
+    val context = LocalContext.current
+    val paths = listOf(
+        PinFaceIdNegateAsset,
+        PinFaceIdNegateAssetUnderscore,
+        PinFaceIdNegateInOperationsLogos,
+        PinFaceIdNegateInOperationsLogosUnderscore
+    )
+    return remember(paths) {
+        paths.firstNotNullOfOrNull { path ->
+            runCatching {
+                context.assets.open(path).use { input ->
+                    BitmapFactory.decodeStream(input)?.asImageBitmap()
+                }
+            }.getOrNull()
+        }
+    }
+}
 
 @Composable
 fun PinLockScreen(onUnlocked: () -> Unit) {
@@ -160,6 +199,8 @@ private fun Keypad(
     onBackspace: () -> Unit,
     onBiometricStub: () -> Unit
 ) {
+    val faceIdBitmap = rememberFaceIdNegateBitmap()
+    val biometricCd = stringResource(R.string.pin_biometric_content_description)
     val rows = listOf(
         listOf("1", "2", "3"),
         listOf("4", "5", "6"),
@@ -179,18 +220,21 @@ private fun Keypad(
                 row.forEach { cell ->
                     when (cell) {
                         "biometric" -> KeypadIconSlot(onClick = onBiometricStub) {
-                            Icon(
-                                imageVector = Icons.Outlined.Face,
-                                contentDescription = stringResource(R.string.pin_biometric_content_description),
-                                tint = TextPrimary,
-                                modifier = Modifier.size(28.dp)
+                            KeypadFaceIdVisual(
+                                bitmap = faceIdBitmap,
+                                contentDescription = biometricCd
                             )
                         }
-                        "backspace" -> KeypadIconSlot(onClick = onBackspace) {
+                        "backspace" -> KeypadCircleColored(
+                            onClick = onBackspace,
+                            baseColor = PinBackspaceCircleFill,
+                            pressedColor = PinBackspaceCirclePressed
+                        ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.Backspace,
                                 contentDescription = stringResource(R.string.pin_backspace_content_description),
-                                tint = TextPrimary
+                                tint = TextPrimary,
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                         else -> KeypadCircle(onClick = { onDigit(cell[0]) }) {
@@ -206,6 +250,57 @@ private fun Keypad(
                 }
             }
         }
+    }
+}
+
+private val KeypadFaceIdIconSize = 40.dp
+
+@Composable
+private fun KeypadFaceIdVisual(
+    bitmap: ImageBitmap?,
+    contentDescription: String
+) {
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(KeypadFaceIdIconSize),
+            contentScale = ContentScale.Fit
+        )
+    } else {
+        Image(
+            painter = painterResource(R.drawable.face_id_negate),
+            contentDescription = contentDescription,
+            modifier = Modifier.size(KeypadFaceIdIconSize),
+            contentScale = ContentScale.Fit
+        )
+    }
+}
+
+@Composable
+private fun KeypadCircleColored(
+    onClick: () -> Unit,
+    baseColor: Color,
+    pressedColor: Color,
+    content: @Composable () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val background = if (pressed) pressedColor else baseColor
+    Box(
+        modifier = Modifier
+            .size(width = 88.dp, height = 88.dp)
+            .aspectRatio(1f)
+            .clip(CircleShape)
+            .background(background)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
     }
 }
 

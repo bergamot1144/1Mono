@@ -1,27 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Konvert</string>
-    <string name="pin_user_display_name">Yevhenii</string>
+    <string name="app_name">1Mono</string>
+    <string name="pin_user_display_name">Клієнт 1Mono</string>
     <string name="pin_greeting">З поверненням, %1$s!</string>
     <string name="pin_enter_prompt">Уведіть ПІН-код</string>
     <string name="pin_forgot">Забули ПІН-код?</string>
     <string name="pin_avatar_content_description">Аватар користувача</string>
     <string name="pin_biometric_content_description">Біометрія</string>
     <string name="pin_backspace_content_description">Стерти</string>
+    <string name="banking_session_loading_cd">Завантаження банкінгу</string>
     <!-- Головний екран (після PIN) -->
     <string name="home_profile_cd">Профіль</string>
     <string name="home_chat_cd">Чат</string>
-    <string name="home_bonus_cd">Бонуси</string>
+    <string name="home_charts_cd">Статистика</string>
+    <!-- Чип праворуч від чату: іконка + сума накопиченого кешбеку (заглушка). -->
+    <string name="home_bonus_cd">Кешбек</string>
+    <string name="home_cashback_chip_semantics">Сума накопиченого кешбеку: %1$s</string>
     <string name="home_balance_main">102 144 ₴</string>
     <string name="home_balance_wallet">2 144 ₴</string>
     <string name="home_balance_credit">100 000 ₴</string>
+    <string name="home_balance_add_cd">Поповнити баланс</string>
     <string name="home_all_cards">Усі картки</string>
-    <string name="home_card_placeholder">Карта Konvert</string>
+    <string name="home_card_placeholder">Картка 1Mono</string>
     <string name="home_card_stub">Динамічна картка — згодом</string>
+    <string name="home_bonus_amount">1 659 ₴</string>
+    <!-- Групи по 4 — розділювачі пробілом; відстань між групами: HomeBankCardContentPadding.numberInterGroupSpacing. -->
+    <string name="home_card_masked_number">4874   ****   ****   3592</string>
+    <string name="home_card_scheme">VISA</string>
 
-    <string name="home_action_transfer">Переказати на картку</string>
-    <string name="home_action_iban">Платіж за IBAN</string>
-    <string name="home_action_other">Інші платежі</string>
+    <string name="home_action_transfer">Переказати\nна картку</string>
+    <string name="home_action_iban">Платіж\nза IBAN</string>
+    <string name="home_action_other">Інші\nплатежі</string>
 
     <string name="home_operations_title">Операції</string>
     <string name="home_operations_all">Усі</string>
@@ -51,4 +60,5 @@
     <string name="home_nav_savings">Накопичення</string>
     <string name="home_nav_more">Ще</string>
     <string name="home_nav_market">Маркет</string>
+    <string name="tab_placeholder_stub">Екран у розробці.</string>
 </resources>
