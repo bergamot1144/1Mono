@@ -61,11 +61,6 @@ fun CreditsTabScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun SavingsTabScreen(modifier: Modifier = Modifier) {
-    TabPlaceholderScaffold(titleRes = R.string.home_nav_savings, modifier = modifier)
-}
-
-@Composable
 fun MoreTabScreen(modifier: Modifier = Modifier) {
     TabPlaceholderScaffold(titleRes = R.string.home_nav_more, modifier = modifier)
 }

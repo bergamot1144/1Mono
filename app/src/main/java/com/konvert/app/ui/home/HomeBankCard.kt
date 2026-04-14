@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,13 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -33,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -48,23 +44,19 @@ import androidx.compose.ui.unit.dp
 
 /** Ширина й висота пластини в слоті каруселі (ширше — сильніший ефект «трапеції» при наклоні). */
 private object HomeBankCardFrame {
-    val width: Dp = 372.dp
-    val height: Dp = 260.dp
+    /** Базова ширина; у [HomeMonoTiltedCard] віднімається [HomeBankCardWidthNarrowPxTotal] px. */
+    val width: Dp = 320.dp
+    /** Висота пластини в [HomeMonoTiltedCard] (нижче — компактніший слот каруселі). */
+    val height: Dp = 240.dp
 }
+
+/** Сума віднімання від базової ширини в px (перерахунок у dp у [HomeMonoTiltedCard]). */
+private const val HomeBankCardWidthNarrowPxTotal: Float = 20f
 
 /** Відступи контенту (логотип, номер, Visa) поверх Canvas. */
 private object HomeBankCardContentPadding {
     val horizontal: Dp = 15.dp
     val vertical: Dp = 18.dp
-    /**
-     * Відстань між групами по 4 символи в номері на картці.
-     * Рядок `number` у [HomeMonoCardFaceLayers] ділиться по пробілах (див. `R.string.home_card_masked_number`).
-     */
-    val numberInterGroupSpacing: Dp = 20.dp
-    /** Частка ширини під масштаб номера (0..1). */
-    const val numberTargetWidthFraction: Float = 0.95f
-    const val numberScaleMin: Float = 0.9f
-    const val numberScaleMax: Float = 1.1f
 }
 
 /** Розміри логотипів (assets). */
@@ -75,38 +67,51 @@ private object HomeBankCardLogos {
     val visaHeight: Dp = 25.dp
     /** Відступ логотипу Visa вгору від нижнього краю лиця картки. */
     val visaBottomLift: Dp = 15.dp
+    /** Зсув Visa вліво від `BottomEnd` (px → dp у [HomeMonoCardFaceLayers]). */
+    const val visaOffsetLeftPx: Float = 10f
 }
 
 /**
  * Геометрія та фарби Canvas (лице + товщина).
  * Порядок шарів знизу вгору — як у коді [drawHomeBankCardPlastic].
+ *
+ * **Синя «димка» на пластику (лице):** [hazeBlueOuter], [hazeBlueMid] — інтенсивність;
+ * [hazeBlueCenterYFraction] (0..1 по висоті лиця) — вертикаль центра радіалу;
+ * [hazeBlueRadiusFactor] — радіус як частка ширини картки.
+ *
+ * **Туман поверх верху картки** (накладається в [HomeMonoTiltedCard] поверх усього лиця): [cardFogTopColor],
+ * [cardFogMidColor], [cardFogGradientHeightFraction].
  */
 private object HomeBankCardPlastic {
     val cornerRadius: Dp = 20.dp
     val frontThickness: Dp = 8.dp
 
-    // --- Об'єм за лицем (видиме ребро при rotationX): єдиний колір #0f1113 ---
-    val volumeBackTop: Color = Color(0xFF0F1113)
-    val volumeBackBottom: Color = Color(0xFF0F1113)
+    // --- Об'єм за лицем (видима смуга товщини / ребро при rotationX): #0d0d0d ---
+    val volumeBackTop: Color = Color(0xFF0D0D0D)
+    val volumeBackBottom: Color = Color(0xFF0D0D0D)
 
     // --- Основне лице: верх і низ як раніше; по середині висоти — плавно світліше (один стоп, без смуги) ---
-    val faceColorStart: Color = Color(0xFF121A2C)
+    val faceColorStart: Color = Color(0xFF0B101A)
     /** Світліший за колишній #171D2D — лише точка 0.5 на вертикальному градієнті. */
-    val faceColorCenter: Color = Color(0xFF1E2838)
-    val faceColorEnd: Color = Color(0xFF1F222A)
+    val faceColorCenter: Color = Color(0xFF202020)
+    /** Низ лиця біля ребра картки. */
+    val faceColorEnd: Color = Color(0xFF292929)
 
     // --- Тонка смужка під лицем (відбиття фону) ---
     val stripWhite: Color = Color.White.copy(alpha = 0.035f)
     val stripBlue: Color = Color(0xFF8FB2FF).copy(alpha = 0.08f)
 
-    // --- Радіальне синє «світіння» по центру ---
+    // --- Радіальне синє «світіння» (центр біля верхнього краю лиця, як на референсі) ---
     val hazeBlueOuter: Color = Color(0xFF355FAF).copy(alpha = 0.10f)
     val hazeBlueMid: Color = Color(0xFF223C6B).copy(alpha = 0.055f)
+    const val hazeBlueCenterYFraction: Float = 0.12f
+    const val hazeBlueRadiusFactor: Float = 0.56f
 
-    // --- Нижній край лиця (холодний підсвіт) ---
-    val bottomGlowWhite: Color = Color.White.copy(alpha = 0.032f)
-    val bottomGlowBlue: Color = Color(0xFFC4D6FF).copy(alpha = 0.05f)
-    val bottomGlowStartYFraction: Float = 0.70f
+    // --- Туман поверх верху пластини (linear поверх контенту в [HomeMonoTiltedCard]; трохи затемнює monobank) ---
+    val cardFogTopColor: Color = Color(0xFF102052).copy(alpha = 0.38f)
+    val cardFogMidColor: Color = Color(0xFF102052).copy(alpha = 0.14f)
+    /** Висота зони градієнта туману як частка висоти пластини. */
+    const val cardFogGradientHeightFraction: Float = 0.56f
 
     /** Теплий бронзовий відтінок — накладається радіально від центру лиця. */
     val bronze: Color = Color(0xFF27262E).copy(alpha = 0.16f)
@@ -118,15 +123,6 @@ private object HomeBankCardPlastic {
 
     // --- Затемнення справа ---
     val shadeBlack: Color = Color.Black.copy(alpha = 0.05f)
-
-    // --- Підсвіт на стику лице / ребро: пік лівіше центру, до нуля з обох боків по ширині картки ---
-    val creaseHighlight: Color = Color.White.copy(alpha = 0.045f)
-    val creaseInset: Dp = 14.dp
-    val creaseStroke: Dp = 1.dp
-    /** Висота смуги підсвітки (px у Canvas). */
-    val creaseHighlightBand: Dp = 2.dp
-    /** Позиція піка по X (0 — лівий край картки, 1 — правий), <0.5 — лівіше центру. */
-    const val creaseHighlightPeakXFraction: Float = 0.50f
 }
 
 // =============================================================================
@@ -180,13 +176,14 @@ internal fun HomeMonoTiltedCard(
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current.density
+    val plateWidth = HomeBankCardFrame.width - (HomeBankCardWidthNarrowPxTotal / density).dp
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .width(HomeBankCardFrame.width)
+                .width(plateWidth)
                 .height(HomeBankCardFrame.height)
                 .graphicsLayer {
                     rotationX = rotationXDegrees
@@ -195,6 +192,33 @@ internal fun HomeMonoTiltedCard(
                     cameraDistance = cameraDistanceFactor * density
                     transformOrigin = TransformOrigin.Center
                     this.translationY = translationY
+                }
+                .drawWithContent {
+                    drawContent()
+                    val P = HomeBankCardPlastic
+                    val fogH = size.height * P.cardFogGradientHeightFraction
+                    val linePx = 1.dp.toPx()
+                    drawRect(
+                        color = Color(0xFF102052),
+                        topLeft = Offset.Zero,
+                        size = Size(size.width, linePx)
+                    )
+                    val fogBodyH = (fogH - linePx).coerceAtLeast(0f)
+                    if (fogBodyH > 0f) {
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0f to P.cardFogTopColor,
+                                    0.5f to P.cardFogMidColor,
+                                    1f to Color.Transparent
+                                ),
+                                startY = linePx,
+                                endY = fogH
+                            ),
+                            topLeft = Offset(0f, linePx),
+                            size = Size(size.width, fogBodyH)
+                        )
+                    }
                 }
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -247,7 +271,12 @@ internal fun HomeMonoCardFaceLayers(
             val faceHeight = cardHeight - effectiveThickness
 
             drawRoundRect(
-                brush = Brush.verticalGradient(colors = listOf(P.volumeBackTop, P.volumeBackBottom)),
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        P.volumeBackTop,
+                        P.volumeBackBottom
+                    )
+                ),
                 topLeft = Offset(0f, effectiveThickness),
                 size = Size(cardWidth, cardHeight - effectiveThickness),
                 cornerRadius = CornerRadius(corner, corner)
@@ -275,28 +304,11 @@ internal fun HomeMonoCardFaceLayers(
                 topLeft = Offset(10.dp.toPx(), faceHeight - 4.dp.toPx()),
                 size = Size(cardWidth - 20.dp.toPx(), 5.dp.toPx())
             )
-//позиция синей дымки
             drawRoundRect(
                 brush = Brush.radialGradient(
                     colors = listOf(P.hazeBlueOuter, P.hazeBlueMid, Color.Transparent),
-                    center = Offset(cardWidth * 0.50f, faceHeight * 0.56f),
-                    radius = cardWidth * 0.48f
-                ),
-                topLeft = Offset(0f, 0f),
-                size = Size(cardWidth, faceHeight),
-                cornerRadius = CornerRadius(corner, corner)
-            )
-
-            drawRoundRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.Transparent,
-                        P.bottomGlowWhite,
-                        P.bottomGlowBlue
-                    ),
-                    startY = faceHeight * P.bottomGlowStartYFraction,
-                    endY = faceHeight
+                    center = Offset(cardWidth * 0.50f, faceHeight * P.hazeBlueCenterYFraction),
+                    radius = cardWidth * P.hazeBlueRadiusFactor
                 ),
                 topLeft = Offset(0f, 0f),
                 size = Size(cardWidth, faceHeight),
@@ -335,43 +347,20 @@ internal fun HomeMonoCardFaceLayers(
                 size = Size(cardWidth, faceHeight),
                 cornerRadius = CornerRadius(corner, corner)
             )
-
-            val creaseBandH = maxOf(P.creaseHighlightBand.toPx(), P.creaseStroke.toPx())
-            val pk = P.creaseHighlightPeakXFraction.coerceIn(0.08f, 0.48f)
-            val hi = P.creaseHighlight
-            val t = Color.Transparent
-            drawRect(
-                brush = Brush.horizontalGradient(
-                    colorStops = arrayOf(
-                        0f to t,
-                        (pk - 0.18f).coerceAtLeast(0f) to t,
-                        (pk - 0.07f).coerceAtLeast(0f) to hi.copy(alpha = hi.alpha * 0.25f),
-                        pk to hi,
-                        (pk + 0.07f).coerceAtMost(1f) to hi.copy(alpha = hi.alpha * 0.25f),
-                        (pk + 0.18f).coerceAtMost(1f) to t,
-                        1f to t
-                    ),
-                    startX = 0f,
-                    endX = cardWidth
-                ),
-                topLeft = Offset(0f, faceHeight - creaseBandH * 0.5f),
-                size = Size(cardWidth, creaseBandH)
-            )
         }
 
         val density = LocalDensity.current
         val C = HomeBankCardContentPadding
         val L = HomeBankCardLogos
-        BoxWithConstraints(
+        val visaShiftLeft = (-L.visaOffsetLeftPx / density.density).dp
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = C.horizontal, vertical = C.vertical)
         ) {
-            val targetNumberWidthPx = with(density) { (maxWidth * C.numberTargetWidthFraction).toPx() }
             val numberGroups = remember(number) {
                 number.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
             }
-            var numberRowWidthPx by remember(number) { mutableFloatStateOf(0f) }
 
             if (monobankLogo != null) {
                 Image(
@@ -390,38 +379,46 @@ internal fun HomeMonoCardFaceLayers(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .offset(y = 6.dp)
-                    .fillMaxWidth(C.numberTargetWidthFraction),
+                    .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(C.numberInterGroupSpacing),
-                    modifier = Modifier
-                        .onSizeChanged { numberRowWidthPx = it.width.toFloat() }
-                        .graphicsLayer {
-                            transformOrigin = TransformOrigin.Center
-                            if (numberRowWidthPx > 0f) {
-                                scaleX = (targetNumberWidthPx / numberRowWidthPx)
-                                    .coerceIn(C.numberScaleMin, C.numberScaleMax)
-                            }
-                        }
-                ) {
-                    if (numberGroups.isEmpty()) {
+                when {
+                    numberGroups.isEmpty() -> {
                         Text(
                             text = number,
                             style = numberStyle,
+                            modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center,
                             maxLines = 1,
                             overflow = TextOverflow.Clip
                         )
-                    } else {
-                        numberGroups.forEach { group ->
-                            Text(
-                                text = group,
-                                style = numberStyle,
-                                maxLines = 1,
-                                overflow = TextOverflow.Clip
-                            )
+                    }
+
+                    numberGroups.size == 1 -> {
+                        Text(
+                            text = numberGroups.first(),
+                            style = numberStyle,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Clip
+                        )
+                    }
+
+                    else -> {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            numberGroups.forEach { group ->
+                                Text(
+                                    text = group,
+                                    style = numberStyle,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Clip
+                                )
+                            }
                         }
                     }
                 }
@@ -433,7 +430,7 @@ internal fun HomeMonoCardFaceLayers(
                     contentDescription = visaContentDescription,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .offset(y = -L.visaBottomLift)
+                        .offset(x = visaShiftLeft, y = -L.visaBottomLift)
                         .width(L.visaWidth)
                         .height(L.visaHeight),
                     contentScale = ContentScale.Fit
@@ -444,12 +441,13 @@ internal fun HomeMonoCardFaceLayers(
                     style = visaFallbackStyle,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .offset(y = -L.visaBottomLift)
+                        .offset(x = visaShiftLeft, y = -L.visaBottomLift)
                 )
             }
         }
     }
 }
+
 
 // --- Прев'ю: картка без контенту (не використовується на Home за замовчуванням) ---
 
@@ -466,7 +464,7 @@ fun PremiumFloatingBankCard(
     val S = PremiumBankCardPreviewStyle
     val density = LocalDensity.current.density
 
-    BoxWithConstraints(modifier) {
+    Box(modifier = modifier) {
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.92f)

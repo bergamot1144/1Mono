@@ -2,23 +2,25 @@ package com.konvert.app.ui.home
 
 import android.graphics.BitmapFactory
 import kotlin.math.floor
+import kotlin.math.min
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -26,15 +28,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.QuestionMark
@@ -48,7 +55,9 @@ import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Article
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -58,6 +67,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,14 +75,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
@@ -100,6 +112,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.konvert.app.R
 import com.konvert.app.ui.home.tabs.CardsTabScreen
 import com.konvert.app.ui.home.tabs.CreditsTabScreen
@@ -136,11 +150,16 @@ private val CardShape = RoundedCornerShape(24.dp)
 private val ChipShape = RoundedCornerShape(20.dp)
 /** Капсула «Усі ›» — великий радіус (візуально як на референсі). */
 private val OperationsAllChipShape = RoundedCornerShape(999.dp)
+/** Низька капсула як на референсі monobank — мало вертикального повітря. */
+private val OperationsAllChipPaddingH = 16.dp
+private val OperationsAllChipPaddingV = 4.dp
+private val OperationsAllChipFontSize = 14.sp
+private val OperationsAllChipLineHeight = 14.sp
 private val ActionCircleSize = 56.dp
 
 /** Висота нижньої «пігулки» та Маркету — радіус = половина висоти (капсула / коло). */
-private val BottomBarHeight = 76.dp
-private val BottomBarPillRadius = 38.dp
+private val BottomBarHeight = 72.dp
+private val BottomBarPillRadius = 36.dp
 private val BottomBarGap = 4.dp
 
 /** Lottie в меню; статична іконка «Маркет» трохи менша. */
@@ -159,16 +178,79 @@ private val BottomBarNavLabelFontFamily = FontFamily(
     Font(R.font.roboto_bold, FontWeight.Normal, FontStyle.Normal)
 )
 
-/** Запас під нижній бар + системна навігація (узгоджено з [BottomBarHeight]). */
-private val HomeListBottomReserveBelowBars = 104.dp + (BottomBarHeight - 56.dp)
+/**
+ * Вертикальні відступи [HomeBottomBar] навколо пігулки (див. [HomeBottomBar] `padding(vertical = 8.dp)`).
+ * Потрібні для нижнього [contentPadding] [LazyColumn], щоб «Корисне» не ховалось під панеллю.
+ */
+private val HomeBottomBarRowVerticalPadding = 16.dp
 
-/** Слот каруселі картки + [HomeCardPlaceholder] — менша висота прибирає «повітря» під картою. */
-private val HomeCardCarouselSlotHeight = 232.dp
+/** Додатковий зазор між верхом плаваючої панелі й останнім блоком після повного скролу. */
+private val HomeCardsListBottomGapBeyondBar = 60.dp
 
-/** Між каруселлю картки та чипом «Усі картки» — менше, щоб блок піднявся ближче до пластини. */
-private val HomeSectionGapCarouselToAllCards = 8.dp
-/** Між «Усі картки» та швидкими діями. */
-private val HomeSectionGapAllCardsToQuick = 18.dp
+/** Відступ під топ-баром перед блоком балансу (не між балансом і картою). */
+private val HomeTopBarToBalancePaddingDp = 44.dp
+private const val HomeTopBarToBalancePaddingPx: Float = 92f
+
+/** Лінія #102052 та екранний градієнт туману над каруселлю (узгоджено з [HomeMonoTiltedCard]). */
+private val HomeCardFogLineColor = Color(0xFF102052)
+private val HomeCardFogLineTopSpacer = 4.dp
+private val HomeCardFogLineThickness = 1.dp
+/** Вертикальний градієнт під лінією (edge-to-edge); висота входить у [HomeSectionGapBalanceToCard]. */
+private val HomeCardFogScreenGradientHeight = 52.dp
+/** Горизонтальний відступ [LazyColumn] — для full-bleed лінії/градієнта. */
+private val HomeCardsLazyHorizontalPadding = 16.dp
+
+/** Між нижнім краєм балансу (чипи) і верхом каруселі: базовий зазор + зона градієнта під лінією. */
+private val HomeSectionGapBalanceToCard = 18.dp + HomeCardFogScreenGradientHeight
+
+/** Зовнішній блок навколо пунктів «Особисті дані…» / «Налаштування…». */
+private val HomeProfileMenuOuterBlockColor = Color(0xFF272727)
+/** Фон рядків усередині цього блоку. */
+private val HomeProfileMenuSettingsRowsColor = Color(0xFF333333)
+private val HomeProfileMenuCardColor = Color(0xFF1C1C1E)
+private val HomeProfileMenuIconCircleBg = Color(0xFF2C3E50)
+private val HomeProfileMenuDivider = Color.White.copy(alpha = 0.10f)
+private val HomeProfileMenuSubtitle = Color(0xFF8E8E93)
+private val HomeProfileCheckBg = Color(0xFF2DD4BF)
+private val HomeProfileDetailsGradientStart = Color(0xFFA78BFA)
+private val HomeProfileDetailsGradientEnd = Color(0xFFEC4899)
+private val HomeProfileMenuSheetShape = RoundedCornerShape(18.dp)
+
+/**
+ * Висота, яку займає блок каруселі в [LazyColumn] — мала, щоб «Усі картки» та нижній контент піднялись.
+ * Фактична висота [HorizontalPager] і картки — [HomeCardCarouselPagerVisualHeight] (через кастомний [Layout]).
+ */
+private val HomeCardCarouselLayoutReserveHeight = 150.dp
+
+/** Висота пейджера / [HomeCardPlaceholder] — повний вигляд пластини без стиснення. */
+private val HomeCardCarouselPagerVisualHeight = 232.dp
+
+/** Базовий зсув пластини картки вгору; додатково [HomeCardPlateExtraLiftPx] px у [HomeCardPlaceholder]. */
+private val HomeCardPlateOffsetY = (-50).dp
+
+/** Додатково підняти пластину (px → dp разом із [HomeCardPlateOffsetY]). */
+private const val HomeCardPlateExtraLiftPx: Float = 40f
+
+/** Підняти весь блок балансу вгору (px → dp у [HomeBalanceBlock]). */
+private const val HomeBalanceVerticalLiftPx: Float = 40f
+
+/** Між зарезервованим низом блоку каруселі й «Усі картки» (нижня частина картки може наїжджати в цей відступ). */
+private val HomeSectionGapCarouselToAllCards = 18.dp
+/** Між «Усі картки» і швидкими діями — ~40 px. */
+private val HomeSectionGapAllCardsToQuick = 20.dp
+/** Між швидкими діями і блоком «Операції». */
+private val HomeSectionGapQuickToOperations = 14.dp
+/** Між блоком «Операції» (перший item) і «Ліміти та обмеження». */
+private val HomeSectionGapOperationsToLimits = 20.dp
+/** Між «Ліміти та обмеження» і «Корисне». */
+private val HomeSectionGapLimitsToUseful = 20.dp
+
+/** У «Корисне»: однаковий горизонтальний inset для ряду курсів і сітки плиток. */
+private val HomeUsefulInnerHorizontalPadding = 10.dp
+/** Зазор між двома рядами плиток 2×2. */
+private val HomeUsefulTilesRowSpacing = 16.dp
+/** Зазор між двома плитками в одному ряду. */
+private val HomeUsefulTilesHorizontalSpacing = 18.dp
 
 /** Колір великого балансу [R.string.home_balance_main] — кешбек у топ-барі та сусідні іконки. */
 private val HomeBalanceMainAmountColor = Color(0xFFFFFFFF)
@@ -182,7 +264,7 @@ private fun rememberKreditFrontFontFamily(): FontFamily {
             Font(
                 path = "kreditfont/Kredit Front.otf",
                 assetManager = assets,
-                weight = FontWeight.Normal,
+                weight = FontWeight.Thin,
                 style = FontStyle.Normal
             )
         )
@@ -266,7 +348,6 @@ private fun Modifier.lottieNavInactiveGrayTint(selected: Boolean): Modifier =
 
 /** Вертикальні палітри фону — по одній на кожну сторінку каруселі карт (узгоджено з [HomeCardsCarouselPageCount]). */
 private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
-    // Картка 1 — градієнт як у темі / макеті
     arrayOf(
         0.00f to Color(0xFF0B0D40),
         0.10f to Color(0xFF10194F),
@@ -279,7 +360,6 @@ private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
         0.90f to Color(0xFF121214),
         1.00f to Color(0xFF0C0C0C)
     ),
-    // r2 — лілово-синій
     arrayOf(
         0.00f to Color(0xFF1A0F45),
         0.18f to Color(0xFF2E2568),
@@ -289,7 +369,6 @@ private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
         0.82f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
-    // r3 — бірюзово-синій
     arrayOf(
         0.00f to Color(0xFF062A32),
         0.18f to Color(0xFF0D3D48),
@@ -299,7 +378,6 @@ private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
         0.82f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
-    // r4 — смарагдовий
     arrayOf(
         0.00f to Color(0xFF062818),
         0.18f to Color(0xFF0C3D28),
@@ -309,7 +387,6 @@ private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
         0.82f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
-    // r5 — бордово-коричневий
     arrayOf(
         0.00f to Color(0xFF2A1010),
         0.18f to Color(0xFF451818),
@@ -337,12 +414,24 @@ private val HomeBgRadialMids: List<Color> = listOf(
     Color(0x1AFF8E53)
 )
 
-/** Затемнення зверху вниз: довше лишається прозорим, щоб не «тягнуло» середину екрана — перехід ближче до блоку «Операції». */
+/** Затемнення для режиму «лише вікно» (немає виміряної висоти контенту). */
 private val HomeBgOverlayStops: Array<Pair<Float, Color>> = arrayOf(
     0.00f to Color.Transparent,
     0.78f to Color.Transparent,
     0.86f to Color(0x44000000),
     0.93f to Color(0xCC121212),
+    1.00f to Color(0xFF121212)
+)
+
+/**
+ * Вертикальний градієнт у координатах **усього** скрол-контенту (0% — верх сторінки, 100% — низ «Корисне»).
+ * Перехід у темряву зміщено на ~15% нижче (раніше 20/30/40% → 35/45/55%).
+ */
+private val HomeBgContentScrollStops: Array<Pair<Float, Color>> = arrayOf(
+    0.00f to Color(0xFF0C0F44),
+    0.35f to Color(0xFF122859),
+    0.45f to Color(0xFF101b2f),
+    0.55f to Color(0xFF121212),
     1.00f to Color(0xFF121212)
 )
 
@@ -380,7 +469,14 @@ fun StaticHomeBackground(
     /** Безперервна позиція каруселі: `currentPage + currentPageOffsetFraction` (0…paletteCount−1). */
     cardScrollPosition: Float = 0f,
     /** Скільки палітр використовувати (1 — лише перша, для інших вкладок). */
-    cardBackgroundPaletteCount: Int = 1
+    cardBackgroundPaletteCount: Int = 1,
+    /**
+     * Висота всього скрол-контенту вкладки «Картки» (від верху до низу «Корисне»), px.
+     * Якщо ≤ 1 — градієнт у режимі висоти вікна.
+     */
+    contentHeightPx: Float = 0f,
+    /** Зсув скролу першого item [LazyColumn] (px), щоб зріз градієнта збігався з контентом. */
+    contentScrollOffsetPx: Float = 0f
 ) {
     val paletteN = cardBackgroundPaletteCount.coerceIn(1, HomeBgMainPalettes.size)
     val maxSlot = (paletteN - 1).coerceAtLeast(0).toFloat()
@@ -396,46 +492,63 @@ fun StaticHomeBackground(
         modifier = modifier
             .fillMaxSize()
             .drawBehind {
-                val width = size.width
-                val height = size.height
+                val vw = size.width
+                val vh = size.height
+                val contentMode = contentHeightPx > 1f
+                val ch = if (contentMode) contentHeightPx.coerceAtLeast(vh) else vh
+                val scroll = if (contentMode) contentScrollOffsetPx else 0f
 
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colorStops = mainStops,
-                        startY = 0f,
-                        endY = height
-                    ),
-                    size = size
-                )
+                if (contentMode) {
+                    val gradStart = Offset(0f, -scroll)
+                    val gradEnd = Offset(0f, ch - scroll)
+                    drawRect(
+                        brush = Brush.linearGradient(
+                            colorStops = HomeBgContentScrollStops,
+                            start = gradStart,
+                            end = gradEnd
+                        ),
+                        topLeft = Offset.Zero,
+                        size = Size(vw, vh)
+                    )
+                } else {
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colorStops = mainStops,
+                            startY = 0f,
+                            endY = vh
+                        ),
+                        size = Size(vw, vh)
+                    )
 
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(radialTop, Color.Transparent),
-                        center = Offset(width * 0.50f, height * 0.22f),
-                        radius = height * 0.42f
-                    ),
-                    radius = height * 0.42f,
-                    center = Offset(width * 0.50f, height * 0.22f)
-                )
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(radialTop, Color.Transparent),
+                            center = Offset(vw * 0.50f, vh * 0.22f),
+                            radius = vh * 0.42f
+                        ),
+                        radius = vh * 0.42f,
+                        center = Offset(vw * 0.50f, vh * 0.22f)
+                    )
 
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(radialMid, Color.Transparent),
-                        center = Offset(width * 0.50f, height * 0.40f),
-                        radius = height * 0.26f
-                    ),
-                    radius = height * 0.26f,
-                    center = Offset(width * 0.50f, height * 0.40f)
-                )
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(radialMid, Color.Transparent),
+                            center = Offset(vw * 0.50f, vh * 0.40f),
+                            radius = vh * 0.26f
+                        ),
+                        radius = vh * 0.26f,
+                        center = Offset(vw * 0.50f, vh * 0.40f)
+                    )
 
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colorStops = HomeBgOverlayStops,
-                        startY = 0f,
-                        endY = height
-                    ),
-                    size = size
-                )
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colorStops = HomeBgOverlayStops,
+                            startY = 0f,
+                            endY = vh
+                        ),
+                        size = Size(vw, vh)
+                    )
+                }
             }
     )
 }
@@ -476,70 +589,369 @@ internal const val HomeCardsCarouselPageCount = 5
 @Composable
 internal fun HomeCardsTabDashboard(
     pagerState: PagerState,
+    onOpenCardDetail: () -> Unit = {},
+    lazyListState: LazyListState,
+    onHomeScrollContentHeightPx: (Float) -> Unit,
+    onRequestProfileMenu: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints(
+    val balanceSectionTopPadding =
+        HomeTopBarToBalancePaddingDp + with(LocalDensity.current) { (HomeTopBarToBalancePaddingPx / density).dp }
+
+    val density = LocalDensity.current
+    val navBottomDp = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
+    val listBottomContentPadding =
+        navBottomDp +
+            BottomBarHeight +
+            HomeBottomBarRowVerticalPadding +
+            HomeCardsListBottomGapBeyondBar
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
     ) {
-        val firstScreenMinHeight =
-            maxHeight - HomeListBottomReserveBelowBars - BottomBarHeight - 12.dp
-        val balanceSectionTopPadding =
-            56.dp + with(LocalDensity.current) { (130f / density).dp }
-
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .drawWithContent {
-                    drawContent()
-                    val overlayH = 200.dp.toPx()
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colorStops = arrayOf(
-                                0f to Color.Transparent,
-                                0.5f to Color(0xFF000000).copy(alpha = 0.07f),
-                                1f to Color(0xFF000000).copy(alpha = 0.24f)
-                            ),
-                            startY = size.height - overlayH,
-                            endY = size.height
-                        ),
-                        topLeft = Offset(0f, size.height - overlayH),
-                        size = Size(size.width, overlayH)
-                    )
-                },
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                bottom = HomeListBottomReserveBelowBars
-            )
+            state = lazyListState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = listBottomContentPadding)
         ) {
             item {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = firstScreenMinHeight.coerceAtLeast(0.dp))
+                        .onSizeChanged { onHomeScrollContentHeightPx(it.height.toFloat()) }
                 ) {
-                    HomeTopBar(onProfileClick = { /* далі */ })
-                    Spacer(modifier = Modifier.height(balanceSectionTopPadding))
-                    HomeBalanceBlock()
-                    HomeCardsCarousel(pagerState = pagerState)
-                    Spacer(modifier = Modifier.height(HomeSectionGapCarouselToAllCards))
-                    HomeAllCardsChip()
-                    Spacer(modifier = Modifier.height(HomeSectionGapAllCardsToQuick))
-                    HomeQuickActions()
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Spacer(modifier = Modifier.weight(1f))
-                    HomeOperationsCard()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = HomeCardsLazyHorizontalPadding)
+                    ) {
+                        HomeTopBar(onProfileClick = onRequestProfileMenu)
+                        Spacer(modifier = Modifier.height(balanceSectionTopPadding))
+                        HomeBalanceBlock()
+                        Spacer(modifier = Modifier.height(HomeCardFogLineTopSpacer))
+                    }
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(HomeCardFogLineThickness)
+                                .background(HomeCardFogLineColor)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(HomeCardFogScreenGradientHeight)
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colorStops = arrayOf(
+                                            0f to HomeCardFogLineColor.copy(alpha = 0.48f),
+                                            0.45f to HomeCardFogLineColor.copy(alpha = 0.14f),
+                                            1f to Color.Transparent
+                                        )
+                                    )
+                                )
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = HomeCardsLazyHorizontalPadding)
+                    ) {
+                        Spacer(
+                            modifier = Modifier.height(
+                                (
+                                    HomeSectionGapBalanceToCard -
+                                        HomeCardFogLineTopSpacer -
+                                        HomeCardFogLineThickness -
+                                        HomeCardFogScreenGradientHeight
+                                    ).coerceAtLeast(0.dp)
+                            )
+                        )
+                        HomeCardsCarousel(pagerState = pagerState, onCardOpen = onOpenCardDetail)
+                        Spacer(modifier = Modifier.height(HomeSectionGapCarouselToAllCards))
+                        HomeAllCardsChip()
+                        Spacer(modifier = Modifier.height(HomeSectionGapAllCardsToQuick))
+                        HomeQuickActions()
+                        Spacer(modifier = Modifier.height(HomeSectionGapQuickToOperations))
+                        HomeOperationsCard()
+                        Spacer(modifier = Modifier.height(HomeSectionGapOperationsToLimits))
+                        HomeLimitsAbroadCard()
+                        Spacer(modifier = Modifier.height(HomeSectionGapLimitsToUseful))
+                        HomeUsefulCard()
+                    }
                 }
             }
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-            item { HomeLimitsAbroadCard() }
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-            item { HomeUsefulCard() }
-            item { Spacer(modifier = Modifier.height(12.dp)) }
         }
     }
+}
+
+private val HomeProfileMenuScrimColor = Color.Black.copy(alpha = 0.62f)
+
+@Composable
+internal fun HomeProfileMenuBottomSheet(onDismiss: () -> Unit) {
+    val personal = stringResource(R.string.home_profile_sheet_personal)
+    val settings = stringResource(R.string.home_profile_sheet_settings)
+    val activeName = stringResource(R.string.home_profile_sheet_active_name)
+    val activeSubtitle = stringResource(R.string.home_profile_sheet_active_subtitle)
+    val fop = stringResource(R.string.home_profile_sheet_fop)
+    val details = stringResource(R.string.home_profile_sheet_details)
+    val activeCd = stringResource(R.string.home_profile_sheet_active_cd)
+    val detailsBrush = Brush.horizontalGradient(
+        listOf(HomeProfileDetailsGradientStart, HomeProfileDetailsGradientEnd)
+    )
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HomeProfileMenuScrimColor)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                )
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {}
+                    ),
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                color = Color(0xFF000000),
+                contentColor = Color.White,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 8.dp, bottom = 12.dp)
+                        .navigationBarsPadding(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        shape = HomeProfileMenuSheetShape,
+                        color = HomeProfileMenuOuterBlockColor,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 0.dp
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(6.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            color = HomeProfileMenuSettingsRowsColor,
+                            tonalElevation = 0.dp,
+                            shadowElevation = 0.dp
+                        ) {
+                            Column(Modifier.fillMaxWidth()) {
+                                HomeProfileMenuSettingsRow(
+                                    icon = Icons.Filled.Description,
+                                    label = personal,
+                                    onClick = { }
+                                )
+                                HomeProfileMenuThinDivider()
+                                HomeProfileMenuSettingsRow(
+                                    icon = Icons.Outlined.Settings,
+                                    label = settings,
+                                    onClick = { }
+                                )
+                            }
+                        }
+                    }
+                    Surface(
+                        shape = HomeProfileMenuSheetShape,
+                        color = HomeProfileMenuCardColor,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 0.dp
+                    ) {
+                        Column(Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = { }
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                                    .semantics { contentDescription = activeCd },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(AvatarPlaceholder),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Person,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(26.dp),
+                                        tint = Color.White.copy(alpha = 0.95f)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        text = activeName,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = activeSubtitle,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = HomeProfileMenuSubtitle,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(HomeProfileCheckBg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+                            HomeProfileMenuThinDivider()
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF0A0A0A)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Business,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp),
+                                        tint = Color.White
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Text(
+                                    text = fop,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.White
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(11.dp))
+                                        .background(Color(0xFF252528))
+                                        .border(
+                                            width = 1.dp,
+                                            brush = detailsBrush,
+                                            shape = RoundedCornerShape(11.dp)
+                                        )
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = { }
+                                        )
+                                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = details,
+                                        style = MaterialTheme.typography.labelLarge.copy(
+                                            brush = detailsBrush
+                                        ),
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeProfileMenuSettingsRow(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(HomeProfileMenuIconCircleBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                tint = Color.White
+            )
+        }
+        Spacer(modifier = Modifier.width(14.dp))
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+            color = Color.White,
+            maxLines = 2
+        )
+    }
+}
+
+@Composable
+private fun HomeProfileMenuThinDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .height(1.dp)
+            .background(HomeProfileMenuDivider)
+    )
 }
 
 @Composable
@@ -657,20 +1069,20 @@ private fun HomeBalanceAddChip(modifier: Modifier = Modifier) {
             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
             .drawBehind {
                 val c = Offset(size.width * 0.5f, size.height * 0.5f)
-                /* Усі кола та плюс — на 10% менші від попередніх пропорцій. */
-                val circleScale = 0.9f
+                /* Масштаб кіл і плюса: −10% від попереднього (0.9 → 0.81). */
+                val circleScale = 0.81f
                 val rOuter = size.minDimension * 0.5f * circleScale
-                /* Внутрішній диск менший за зовнішній (22/40 від rOuter). */
-                val rInner = rOuter * (22f / 40f)
-                /* Кожен елемент ще на ~10% прозоріший (альфа ×0.9). */
-                val outerAlpha = 0.25f * 0.9f
+                /* Внутрішній диск: пропорція до rOuter мінус 3 px радіуса за макетом. */
+                val rInner = (rOuter * (22f / 40f) - 3f).coerceAtLeast(1f)
+                /* Зовнішнє кільце: ~90% прозорість (альфа 0.1); внутрішній диск — #ffffff. */
+                val outerAlpha = 0.1f
                 drawCircle(
                     color = Color.White.copy(alpha = outerAlpha),
                     radius = rOuter,
                     center = c
                 )
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.75f * 0.9f * 0.9f),
+                    color = Color(0xFFFFFFFF),
                     radius = rInner,
                     center = c
                 )
@@ -715,8 +1127,12 @@ private fun HomeBalanceAddChip(modifier: Modifier = Modifier) {
 private fun HomeBalanceBlock() {
     val walletChipIcon = rememberAssetImageBitmap(CardWalletNegateAsset)
     val creditChipIcon = rememberAssetImageBitmap(CardAddDebitNegateAsset)
+    val density = LocalDensity.current.density
+    val balanceLift = (-HomeBalanceVerticalLiftPx / density).dp
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .offset(y = balanceLift),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
@@ -728,7 +1144,7 @@ private fun HomeBalanceBlock() {
             Text(
                 text = stringResource(R.string.home_balance_main),
                 color = HomeBalanceMainAmountColor,
-                fontSize = 43.sp,
+                fontSize = 44.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.5.sp
             )
@@ -801,21 +1217,51 @@ private fun BalanceChip(icon: @Composable () -> Unit, text: String) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun HomeCardsCarousel(pagerState: PagerState) {
-    HorizontalPager(
-        state = pagerState,
+private fun HomeCardsCarousel(
+    pagerState: PagerState,
+    onCardOpen: () -> Unit = {}
+) {
+    Layout(
+        content = {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(HomeCardCarouselPagerVisualHeight),
+                beyondBoundsPageCount = 1,
+                pageSpacing = 12.dp
+            ) {
+                HomeCardPlaceholder(onCardClick = onCardOpen)
+            }
+        },
         modifier = Modifier
             .fillMaxWidth()
-            .height(HomeCardCarouselSlotHeight),
-        beyondBoundsPageCount = 1,
-        pageSpacing = 12.dp
-    ) {
-        HomeCardPlaceholder()
+            .graphicsLayer { clip = false }
+    ) { measurables, constraints ->
+        val pager = measurables.single()
+        val visualPx = HomeCardCarouselPagerVisualHeight.roundToPx()
+        val reservePx = HomeCardCarouselLayoutReserveHeight.roundToPx()
+        val childMaxH = if (constraints.maxHeight == Constraints.Infinity) {
+            visualPx
+        } else {
+            min(visualPx, constraints.maxHeight).coerceAtLeast(constraints.minHeight)
+        }
+        val placeable = pager.measure(
+            constraints.copy(
+                minHeight = 0,
+                maxHeight = childMaxH
+            )
+        )
+        val w = constraints.maxWidth.coerceIn(constraints.minWidth, constraints.maxWidth)
+        val h = reservePx.coerceIn(constraints.minHeight, constraints.maxHeight)
+        layout(w, h) {
+            placeable.place(0, 0)
+        }
     }
 }
 
 @Composable
-private fun HomeCardPlaceholder() {
+private fun HomeCardPlaceholder(onCardClick: () -> Unit = {}) {
     val kreditFront = rememberKreditFrontFontFamily()
     val schemeTypefaceFamily = MaterialTheme.typography.titleMedium.fontFamily
     val title = stringResource(R.string.home_card_placeholder)
@@ -824,28 +1270,18 @@ private fun HomeCardPlaceholder() {
     val monobankLogo = rememberAssetImageBitmap(CardMonobankNegateAsset)
     val visaCd = stringResource(R.string.home_card_scheme)
 
-    var cardUnfolded by remember { mutableStateOf(false) }
-    val unfoldProgress by animateFloatAsState(
-        targetValue = if (cardUnfolded) 1f else 0f,
-        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
-        label = "homeCardUnfold"
-    )
-
-    /* Наклон і камера як у [PremiumBankCardPreviewStyle] (58° / 34) у складеному стані. */
-    val rotX = lerp(65f, 0f, unfoldProgress)
+    val rotX = 65f
     val rotY = 0f
     val rotZ = 0f
-    val cardTransY = lerp(20f, 0f, unfoldProgress)
-    val cameraFactor = lerp(34f, 22f, unfoldProgress)
+    val cardTransY = 20f
+    val cameraFactor = 15f
 
-    // Номер картки: жирний Kredit Front; при розгортанні колір → #BCBCBC.
-    val numberColor = lerp(Color(0xFF57667D), Color(0xFFBCBCBC), unfoldProgress)
     val numberStyle = TextStyle(
         fontFamily = kreditFront,
-        fontSize = 25.sp,
+        fontSize = 27.sp,
         letterSpacing = 1.7.sp,
-        fontWeight = FontWeight.Bold,
-        color = numberColor
+        fontWeight = FontWeight.ExtraBold,
+        color = Color(0xFFB1B2B7)
     )
     val visaFallbackStyle = TextStyle(
         fontFamily = schemeTypefaceFamily ?: FontFamily.Default,
@@ -854,10 +1290,13 @@ private fun HomeCardPlaceholder() {
         color = Color.White
     )
 
+    val density = LocalDensity.current.density
+    val plateOffsetY = HomeCardPlateOffsetY + (-HomeCardPlateExtraLiftPx / density).dp
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(HomeCardCarouselSlotHeight)
+            .height(HomeCardCarouselPagerVisualHeight)
             .semantics { contentDescription = title },
         contentAlignment = Alignment.TopCenter
     ) {
@@ -875,10 +1314,134 @@ private fun HomeCardPlaceholder() {
             rotationZDegrees = rotZ,
             cameraDistanceFactor = cameraFactor,
             translationY = cardTransY,
-            cardUnfoldProgress = unfoldProgress,
-            onCardClick = { cardUnfolded = !cardUnfolded },
-            modifier = Modifier.fillMaxWidth()
+            cardUnfoldProgress = 0f,
+            onCardClick = onCardClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset(y = plateOffsetY)
         )
+    }
+}
+
+/**
+ * Екран картки після натискання на пластину: картка зверху (розгортання + обертання), список-заглушка.
+ */
+@Composable
+internal fun HomeCardDetailScreen(onClose: () -> Unit) {
+    val kreditFront = rememberKreditFrontFontFamily()
+    val schemeTypefaceFamily = MaterialTheme.typography.titleMedium.fontFamily
+    val title = stringResource(R.string.home_card_placeholder)
+    val number = stringResource(R.string.home_card_masked_number)
+    val visaLogo = rememberAssetImageBitmap(CardVisaLogoAsset)
+    val monobankLogo = rememberAssetImageBitmap(CardMonobankNegateAsset)
+    val visaCd = stringResource(R.string.home_card_scheme)
+    val closeCd = stringResource(R.string.home_card_detail_close_cd)
+
+    var targetRotX by remember { mutableFloatStateOf(65f) }
+    var targetRotY by remember { mutableFloatStateOf(-18f) }
+    LaunchedEffect(Unit) {
+        targetRotX = 0f
+        targetRotY = 0f
+    }
+    val rotX by animateFloatAsState(
+        targetValue = targetRotX,
+        animationSpec = tween(520, easing = FastOutSlowInEasing),
+        label = "detailCardRotX"
+    )
+    val rotY by animateFloatAsState(
+        targetValue = targetRotY,
+        animationSpec = tween(520, easing = FastOutSlowInEasing),
+        label = "detailCardRotY"
+    )
+
+    val numberStyle = TextStyle(
+        fontFamily = kreditFront,
+        fontSize = 25.sp,
+        letterSpacing = 1.7.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color(0xFFBCBCBC)
+    )
+    val visaFallbackStyle = TextStyle(
+        fontFamily = schemeTypefaceFamily ?: FontFamily.Default,
+        fontSize = 22.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color.White
+    )
+    val detailScroll = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = closeCd,
+                    tint = TextPrimary
+                )
+            }
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(detailScroll)
+                .padding(horizontal = 16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 20.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                HomeMonoTiltedCard(
+                    monobankLogo = monobankLogo,
+                    visaLogo = visaLogo,
+                    number = number,
+                    numberStyle = numberStyle,
+                    visaFallbackText = visaCd,
+                    visaFallbackStyle = visaFallbackStyle,
+                    monobankContentDescription = title,
+                    visaContentDescription = visaCd,
+                    rotationXDegrees = rotX,
+                    rotationYDegrees = rotY,
+                    rotationZDegrees = 0f,
+                    cameraDistanceFactor = 22f,
+                    translationY = 0f,
+                    cardUnfoldProgress = 1f,
+                    onCardClick = { },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Text(
+                text = stringResource(R.string.home_card_detail_section_title),
+                color = TextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            Surface(
+                shape = CardShape,
+                color = OperationsBlockColor,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = stringResource(R.string.home_card_detail_stub_row),
+                    color = PinPromptText,
+                    fontSize = 15.sp,
+                    modifier = Modifier.padding(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
     }
 }
 
@@ -1060,12 +1623,16 @@ private fun HomeOperationsCard() {
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) { }
-                        .padding(horizontal = 22.dp, vertical = 8.dp)
+                        .padding(
+                            horizontal = OperationsAllChipPaddingH,
+                            vertical = OperationsAllChipPaddingV
+                        )
                 ) {
                     Text(
                         text = stringResource(R.string.home_operations_all) + " ›",
                         color = HomeOperationsAllChipText,
-                        fontSize = 14.sp,
+                        fontSize = OperationsAllChipFontSize,
+                        lineHeight = OperationsAllChipLineHeight,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -1251,7 +1818,9 @@ private fun HomeUsefulCard() {
             )
             Spacer(modifier = Modifier.height(14.dp))
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = HomeUsefulInnerHorizontalPadding),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 RateRow(modifier = Modifier.weight(1f))
@@ -1260,12 +1829,15 @@ private fun HomeUsefulCard() {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp),
+                    .padding(horizontal = HomeUsefulInnerHorizontalPadding),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally)
+                    horizontalArrangement = Arrangement.spacedBy(
+                        HomeUsefulTilesHorizontalSpacing,
+                        Alignment.CenterHorizontally
+                    )
                 ) {
                     UsefulTile(
                         Icons.Filled.SupportAgent,
@@ -1280,10 +1852,13 @@ private fun HomeUsefulCard() {
                         iconTint = Color(0xFFA855F7)
                     )
                 }
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(HomeUsefulTilesRowSpacing))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally)
+                    horizontalArrangement = Arrangement.spacedBy(
+                        HomeUsefulTilesHorizontalSpacing,
+                        Alignment.CenterHorizontally
+                    )
                 ) {
                     UsefulTile(
                         Icons.Filled.ReceiptLong,

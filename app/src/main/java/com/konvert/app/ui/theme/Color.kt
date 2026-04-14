@@ -66,7 +66,7 @@ val OperationsBlockColor = Color(0xFF242424)
 val OperationLogoProductsBg = Color(0xFFF9642C)
 
 /** Нижня навігація (пігулка + Маркет): заливка та ледь світліший бордер */
-val HomeBottomBarFill = Color(0xFF2A2A2A)
+val HomeBottomBarFill = Color(0xFF2D2D2D)
 val HomeBottomBarBorder = Color(0xFF404040)
 
 /** Текст / стан неактивних пунктів нижньої навігації */
