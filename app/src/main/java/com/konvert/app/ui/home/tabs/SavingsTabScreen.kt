@@ -1,6 +1,5 @@
 package com.konvert.app.ui.home.tabs
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,9 +19,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,6 +35,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import com.konvert.app.admin.AppAdminState
+import com.konvert.app.admin.JarAdminConfig
+import com.konvert.app.admin.LocalAppAdmin
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,15 +68,17 @@ private data class SavingsActionCell(
 )
 
 private data class SavingsJarRow(
-    val titleRes: Int,
-    val accumulatedRes: Int,
-    val targetRes: Int,
+    val title: String,
+    val accumulatedLine: String,
+    val targetLine: String,
     val jarCircleColor: Color
 )
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SavingsTabScreen(modifier: Modifier = Modifier) {
+fun SavingsTabScreen(
+    modifier: Modifier = Modifier,
+    onOpenJarBankCar: (Int) -> Unit = {}
+) {
     val actions = remember {
         listOf(
             SavingsActionCell(R.string.savings_action_deposit, Icons.Outlined.MyLocation, SavingsDepositIconCircle),
@@ -83,18 +87,31 @@ fun SavingsTabScreen(modifier: Modifier = Modifier) {
             SavingsActionCell(R.string.savings_action_archive, Icons.Outlined.Archive, SavingsArchiveIconCircle)
         )
     }
-    val jars = remember {
-        listOf(
-            SavingsJarRow(
-                titleRes = R.string.savings_jar_car_title,
-                accumulatedRes = R.string.savings_jar_car_accumulated,
-                targetRes = R.string.savings_jar_car_target,
-                jarCircleColor = SavingsBankJarCircle
-            )
+    val admin = LocalAppAdmin.current
+    val jarConfigs = admin?.state?.jars ?: AppAdminState().jars
+    val jarCirclePalette = remember {
+        listOf(SavingsBankJarCircle, SavingsBondsIconCircle, SavingsDepositIconCircle)
+    }
+    val jars = jarConfigs.mapIndexed { index, jar ->
+        jar.toSavingsJarRow(
+            index = index,
+            circleColor = jarCirclePalette[index % jarCirclePalette.size]
         )
     }
-    val actionPagerState = rememberPagerState(pageCount = { actions.size })
-
+    val fallbackHeaderBalance = stringResource(R.string.savings_header_balance)
+    val headerBalanceText = remember(jarConfigs) {
+        jarConfigs
+            .map { it.balanceDisplay }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .let { parts ->
+                when {
+                    parts.isEmpty() -> null
+                    parts.size == 1 -> parts[0]
+                    else -> parts.joinToString(separator = " · ")
+                }
+            }
+    } ?: fallbackHeaderBalance
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -147,7 +164,7 @@ fun SavingsTabScreen(modifier: Modifier = Modifier) {
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = stringResource(R.string.savings_header_balance),
+                        text = headerBalanceText,
                         color = Color.White,
                         fontSize = 34.sp,
                         fontWeight = FontWeight.Bold,
@@ -170,20 +187,24 @@ fun SavingsTabScreen(modifier: Modifier = Modifier) {
             )
         ) {
             item {
-                HorizontalPager(
-                    state = actionPagerState,
+                LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(132.dp)
                         .offset(y = (-18).dp),
                     contentPadding = PaddingValues(horizontal = 16.dp),
-                    pageSpacing = 10.dp,
-                    beyondBoundsPageCount = 2
-                ) { page ->
-                    SavingsCarouselCell(
-                        cell = actions[page],
-                        modifier = Modifier.width(154.dp)
-                    )
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    items(
+                        items = actions,
+                        key = { it.titleRes }
+                    ) { cell ->
+                        SavingsCarouselCell(
+                            cell = cell,
+                            modifier = Modifier.width(154.dp)
+                        )
+                    }
                 }
             }
             item {
@@ -209,8 +230,12 @@ fun SavingsTabScreen(modifier: Modifier = Modifier) {
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
-            itemsIndexed(jars) { index, jar ->
-                SavingsJarListRow(jar = jar, showDividerBelow = index < jars.lastIndex)
+            itemsIndexed(jars, key = { index, _ -> index }) { index, jar ->
+                SavingsJarListRow(
+                    jar = jar,
+                    showDividerBelow = index < jars.lastIndex,
+                    onClick = { onOpenJarBankCar(index) }
+                )
             }
         }
     }
@@ -258,8 +283,25 @@ private fun SavingsCarouselCell(
     }
 }
 
+private fun JarAdminConfig.toSavingsJarRow(index: Int, circleColor: Color): SavingsJarRow {
+    val title = name.takeIf { it.isNotBlank() } ?: "Банка ${index + 1}"
+    val accumulated = accumulatedDisplay.takeIf { it.isNotBlank() }
+        ?: "Накопичено ${balanceDisplay.trim()}".trim()
+    val target = targetDisplay.takeIf { it.isNotBlank() } ?: balanceDisplay
+    return SavingsJarRow(
+        title = title,
+        accumulatedLine = accumulated,
+        targetLine = target,
+        jarCircleColor = circleColor
+    )
+}
+
 @Composable
-private fun SavingsJarListRow(jar: SavingsJarRow, showDividerBelow: Boolean) {
+private fun SavingsJarListRow(
+    jar: SavingsJarRow,
+    showDividerBelow: Boolean,
+    onClick: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -267,7 +309,7 @@ private fun SavingsJarListRow(jar: SavingsJarRow, showDividerBelow: Boolean) {
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = { }
+                    onClick = onClick
                 )
                 .padding(horizontal = 20.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -289,7 +331,7 @@ private fun SavingsJarListRow(jar: SavingsJarRow, showDividerBelow: Boolean) {
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(jar.titleRes),
+                    text = jar.title,
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
@@ -298,13 +340,13 @@ private fun SavingsJarListRow(jar: SavingsJarRow, showDividerBelow: Boolean) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = stringResource(jar.accumulatedRes),
+                    text = jar.accumulatedLine,
                     color = SavingsCaptionMuted,
                     fontSize = 13.sp
                 )
             }
             Text(
-                text = stringResource(jar.targetRes),
+                text = jar.targetLine,
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium

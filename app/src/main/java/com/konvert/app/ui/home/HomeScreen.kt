@@ -64,6 +64,7 @@ import androidx.compose.material3.Text
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -115,6 +116,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.konvert.app.R
+import com.konvert.app.admin.LocalAppAdmin
 import com.konvert.app.ui.home.tabs.CardsTabScreen
 import com.konvert.app.ui.home.tabs.CreditsTabScreen
 import com.konvert.app.ui.home.tabs.MarketTabScreen
@@ -185,7 +187,7 @@ private val BottomBarNavLabelFontFamily = FontFamily(
 private val HomeBottomBarRowVerticalPadding = 16.dp
 
 /** Додатковий зазор між верхом плаваючої панелі й останнім блоком після повного скролу. */
-private val HomeCardsListBottomGapBeyondBar = 60.dp
+private val HomeCardsListBottomGapBeyondBar = 38.dp
 
 /** Відступ під топ-баром перед блоком балансу (не між балансом і картою). */
 private val HomeTopBarToBalancePaddingDp = 44.dp
@@ -220,28 +222,28 @@ private val HomeProfileMenuSheetShape = RoundedCornerShape(18.dp)
  * Висота, яку займає блок каруселі в [LazyColumn] — мала, щоб «Усі картки» та нижній контент піднялись.
  * Фактична висота [HorizontalPager] і картки — [HomeCardCarouselPagerVisualHeight] (через кастомний [Layout]).
  */
-private val HomeCardCarouselLayoutReserveHeight = 150.dp
+private val HomeCardCarouselLayoutReserveHeight = 132.dp
 
 /** Висота пейджера / [HomeCardPlaceholder] — повний вигляд пластини без стиснення. */
 private val HomeCardCarouselPagerVisualHeight = 232.dp
 
 /** Базовий зсув пластини картки вгору; додатково [HomeCardPlateExtraLiftPx] px у [HomeCardPlaceholder]. */
-private val HomeCardPlateOffsetY = (-50).dp
+private val HomeCardPlateOffsetY = (-58).dp
 
 /** Додатково підняти пластину (px → dp разом із [HomeCardPlateOffsetY]). */
-private const val HomeCardPlateExtraLiftPx: Float = 40f
+private const val HomeCardPlateExtraLiftPx: Float = 56f
 
 /** Підняти весь блок балансу вгору (px → dp у [HomeBalanceBlock]). */
 private const val HomeBalanceVerticalLiftPx: Float = 40f
 
 /** Між зарезервованим низом блоку каруселі й «Усі картки» (нижня частина картки може наїжджати в цей відступ). */
-private val HomeSectionGapCarouselToAllCards = 18.dp
+private val HomeSectionGapCarouselToAllCards = 8.dp
 /** Між «Усі картки» і швидкими діями — ~40 px. */
-private val HomeSectionGapAllCardsToQuick = 20.dp
+private val HomeSectionGapAllCardsToQuick = 10.dp
 /** Між швидкими діями і блоком «Операції». */
-private val HomeSectionGapQuickToOperations = 14.dp
+private val HomeSectionGapQuickToOperations = 6.dp
 /** Між блоком «Операції» (перший item) і «Ліміти та обмеження». */
-private val HomeSectionGapOperationsToLimits = 20.dp
+private val HomeSectionGapOperationsToLimits = 14.dp
 /** Між «Ліміти та обмеження» і «Корисне». */
 private val HomeSectionGapLimitsToUseful = 20.dp
 
@@ -554,31 +556,94 @@ fun StaticHomeBackground(
 }
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
     var selectedBottomTab by remember { mutableStateOf(HomeBottomNavTab.Cards) }
+    var savingsJarFlow by remember { mutableStateOf<SavingsJarFlow>(SavingsJarFlow.None) }
     val bottomBarLiftDp = 12.dp
     /** Додатковий зсиг униз на 10 px екрана (щодо попереднього положення). */
     val bottomBarDownFromPx10 = (10f / LocalDensity.current.density).dp
 
+    LaunchedEffect(selectedBottomTab) {
+        if (selectedBottomTab != HomeBottomNavTab.Savings) {
+            savingsJarFlow = SavingsJarFlow.None
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         when (selectedBottomTab) {
-            HomeBottomNavTab.Cards -> CardsTabScreen()
+            HomeBottomNavTab.Cards -> CardsTabScreen(onOpenAdmin = onOpenAdmin)
             HomeBottomNavTab.Credits -> CreditsTabScreen()
-            HomeBottomNavTab.Savings -> SavingsTabScreen()
+            HomeBottomNavTab.Savings -> SavingsTabScreen(
+                onOpenJarBankCar = { index -> savingsJarFlow = SavingsJarFlow.Detail(index) }
+            )
             HomeBottomNavTab.More -> MoreTabScreen()
             HomeBottomNavTab.Market -> MarketTabScreen()
         }
 
-        HomeBottomBar(
-            selectedTab = selectedBottomTab,
-            onTabSelected = { selectedBottomTab = it },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .offset(y = -bottomBarLiftDp + bottomBarDownFromPx10)
-                .padding(bottom = 2.dp)
-        )
+        val hideBottomBar =
+            selectedBottomTab == HomeBottomNavTab.Savings && savingsJarFlow !is SavingsJarFlow.None
+        if (!hideBottomBar) {
+            HomeBottomBar(
+                selectedTab = selectedBottomTab,
+                onTabSelected = { selectedBottomTab = it },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .offset(y = -bottomBarLiftDp + bottomBarDownFromPx10)
+                    .padding(bottom = 2.dp)
+            )
+        }
+
+        if (savingsJarFlow !is SavingsJarFlow.None) {
+            BackHandler {
+                val flow = savingsJarFlow
+                savingsJarFlow = when (flow) {
+                    is SavingsJarFlow.TransactionDetail ->
+                        SavingsJarFlow.TopUpTransactions(flow.jarIndex, flow.category)
+                    is SavingsJarFlow.TopUpTransactions ->
+                        SavingsJarFlow.Detail(flow.jarIndex)
+                    is SavingsJarFlow.Share ->
+                        SavingsJarFlow.Detail(flow.jarIndex)
+                    is SavingsJarFlow.Detail ->
+                        SavingsJarFlow.None
+                    SavingsJarFlow.None -> SavingsJarFlow.None
+                }
+            }
+            when (val f = savingsJarFlow) {
+                is SavingsJarFlow.Detail -> JarBankDetailScreen(
+                    jarIndex = f.jarIndex,
+                    onBack = { savingsJarFlow = SavingsJarFlow.None },
+                    onShareJar = { savingsJarFlow = SavingsJarFlow.Share(f.jarIndex) },
+                    onOpenTopUpCategory = { cat ->
+                        savingsJarFlow = SavingsJarFlow.TopUpTransactions(f.jarIndex, cat)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+                is SavingsJarFlow.Share -> JarBankShareScreen(
+                    jarIndex = f.jarIndex,
+                    onBack = { savingsJarFlow = SavingsJarFlow.Detail(f.jarIndex) },
+                    modifier = Modifier.fillMaxSize()
+                )
+                is SavingsJarFlow.TopUpTransactions -> JarTopUpTransactionsScreen(
+                    jarIndex = f.jarIndex,
+                    category = f.category,
+                    onBack = { savingsJarFlow = SavingsJarFlow.Detail(f.jarIndex) },
+                    onOpenTransaction = { payload ->
+                        savingsJarFlow = SavingsJarFlow.TransactionDetail(f.jarIndex, f.category, payload)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+                is SavingsJarFlow.TransactionDetail -> JarTransactionDetailScreen(
+                    payload = f.payload,
+                    onBack = {
+                        savingsJarFlow = SavingsJarFlow.TopUpTransactions(f.jarIndex, f.category)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+                SavingsJarFlow.None -> {}
+            }
+        }
     }
 }
 
@@ -690,10 +755,15 @@ internal fun HomeCardsTabDashboard(
 private val HomeProfileMenuScrimColor = Color.Black.copy(alpha = 0.62f)
 
 @Composable
-internal fun HomeProfileMenuBottomSheet(onDismiss: () -> Unit) {
+internal fun HomeProfileMenuBottomSheet(
+    onDismiss: () -> Unit,
+    onAppSettingsClick: () -> Unit = {}
+) {
     val personal = stringResource(R.string.home_profile_sheet_personal)
     val settings = stringResource(R.string.home_profile_sheet_settings)
-    val activeName = stringResource(R.string.home_profile_sheet_active_name)
+    val admin = LocalAppAdmin.current
+    val activeName = admin?.state?.accountFullName?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.home_profile_sheet_active_name)
     val activeSubtitle = stringResource(R.string.home_profile_sheet_active_subtitle)
     val fop = stringResource(R.string.home_profile_sheet_fop)
     val details = stringResource(R.string.home_profile_sheet_details)
@@ -766,7 +836,7 @@ internal fun HomeProfileMenuBottomSheet(onDismiss: () -> Unit) {
                                 HomeProfileMenuSettingsRow(
                                     icon = Icons.Outlined.Settings,
                                     label = settings,
-                                    onClick = { }
+                                    onClick = onAppSettingsClick
                                 )
                             }
                         }
@@ -1125,6 +1195,13 @@ private fun HomeBalanceAddChip(modifier: Modifier = Modifier) {
 
 @Composable
 private fun HomeBalanceBlock() {
+    val admin = LocalAppAdmin.current
+    val mainBal = admin?.state?.balanceMain?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.home_balance_main)
+    val walletBal = admin?.state?.balanceWallet?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.home_balance_wallet)
+    val creditBal = admin?.state?.balanceCredit?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.home_balance_credit)
     val walletChipIcon = rememberAssetImageBitmap(CardWalletNegateAsset)
     val creditChipIcon = rememberAssetImageBitmap(CardAddDebitNegateAsset)
     val density = LocalDensity.current.density
@@ -1142,7 +1219,7 @@ private fun HomeBalanceBlock() {
             HomeBalanceAddChip()
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = stringResource(R.string.home_balance_main),
+                text = mainBal,
                 color = HomeBalanceMainAmountColor,
                 fontSize = 44.sp,
                 fontWeight = FontWeight.Bold,
@@ -1173,7 +1250,7 @@ private fun HomeBalanceBlock() {
                         )
                     }
                 },
-                text = stringResource(R.string.home_balance_wallet)
+                text = walletBal
             )
             BalanceChip(
                 icon = {
@@ -1194,7 +1271,7 @@ private fun HomeBalanceBlock() {
                         )
                     }
                 },
-                text = stringResource(R.string.home_balance_credit)
+                text = creditBal
             )
         }
     }
@@ -1273,7 +1350,7 @@ private fun HomeCardPlaceholder(onCardClick: () -> Unit = {}) {
     val rotX = 65f
     val rotY = 0f
     val rotZ = 0f
-    val cardTransY = 20f
+    val cardTransY = 10f
     val cameraFactor = 15f
 
     val numberStyle = TextStyle(

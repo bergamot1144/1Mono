@@ -28,7 +28,10 @@ import com.konvert.app.ui.home.StaticHomeBackground
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun CardsTabScreen(modifier: Modifier = Modifier) {
+fun CardsTabScreen(
+    modifier: Modifier = Modifier,
+    onOpenAdmin: () -> Unit = {}
+) {
     val pageCount = HomeCardsCarouselPageCount
     val pagerState = rememberPagerState(pageCount = { pageCount })
     val scrollPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
@@ -80,7 +83,13 @@ fun CardsTabScreen(modifier: Modifier = Modifier) {
             }
         }
         if (profileMenuOpen) {
-            HomeProfileMenuBottomSheet(onDismiss = { profileMenuOpen = false })
+            HomeProfileMenuBottomSheet(
+                onDismiss = { profileMenuOpen = false },
+                onAppSettingsClick = {
+                    profileMenuOpen = false
+                    onOpenAdmin()
+                }
+            )
         }
     }
 }

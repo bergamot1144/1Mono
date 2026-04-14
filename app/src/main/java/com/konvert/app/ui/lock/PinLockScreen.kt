@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.konvert.app.R
+import com.konvert.app.admin.LocalAppAdmin
 import com.konvert.app.ui.theme.AvatarPlaceholder
 import com.konvert.app.ui.theme.ErrorTint
 import com.konvert.app.ui.theme.GreetingText
@@ -131,11 +132,11 @@ fun PinLockScreen(onUnlocked: () -> Unit) {
             )
         }
         Spacer(modifier = Modifier.height(20.dp))
+        val admin = LocalAppAdmin.current
+        val greetName = admin?.state?.mainFirstName?.takeIf { it.isNotBlank() }
+            ?: stringResource(R.string.pin_user_display_name)
         Text(
-            text = stringResource(
-                R.string.pin_greeting,
-                stringResource(R.string.pin_user_display_name)
-            ),
+            text = stringResource(R.string.pin_greeting, greetName),
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.2.sp
