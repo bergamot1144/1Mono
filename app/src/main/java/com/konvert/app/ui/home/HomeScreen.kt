@@ -119,6 +119,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 import com.konvert.app.R
 import com.konvert.app.admin.LocalAppAdmin
 import com.konvert.app.ui.home.tabs.CardsTabScreen
@@ -230,7 +231,8 @@ private val HomeCardCarouselLayoutReserveHeight = 132.dp
 
 /** Висота пейджера / [HomeCardPlaceholder] — повний вигляд пластини без стиснення. */
 private val HomeCardCarouselPagerVisualHeight = 232.dp
-private val HomeCardCarouselSidePeekOffset = 42.dp
+private const val HomeCardCarouselCardWidthFraction = 0.86f
+private const val HomeCardCarouselStepFraction = 0.72f
 private val HomeCardCarouselNeighborAlpha = 0.82f
 
 /** Базовий зсув пластини картки вгору; додатково [HomeCardPlateExtraLiftPx] px у [HomeCardPlaceholder]. */
@@ -1331,23 +1333,20 @@ private fun HomeCardsCarousel(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(HomeCardCarouselPagerVisualHeight)
+                    .height(HomeCardCarouselPagerVisualHeight),
+                contentAlignment = Alignment.TopCenter
             ) {
                 val currentPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
                 for (index in 0 until pagerState.pageCount) {
                     val offset = index - currentPosition
                     if (abs(offset) <= 1.35f) {
-                        val sidePeekOffset = when {
-                            offset > 0f -> HomeCardCarouselSidePeekOffset
-                            offset < 0f -> -HomeCardCarouselSidePeekOffset
-                            else -> 0.dp
-                        }
                         HomeCardPlaceholder(
                             onCardClick = onCardOpen,
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .fillMaxWidth(HomeCardCarouselCardWidthFraction)
+                                .zIndex(2f - abs(offset))
                                 .graphicsLayer {
-                                    translationX = offset * size.width * 0.78f
+                                    translationX = offset * size.width * HomeCardCarouselStepFraction
                                     alpha =
                                         androidx.compose.ui.util.lerp(
                                             HomeCardCarouselNeighborAlpha,
@@ -1355,7 +1354,6 @@ private fun HomeCardsCarousel(
                                             (1f - abs(offset)).coerceIn(0f, 1f)
                                         )
                                 }
-                                .offset(x = sidePeekOffset)
                         )
                     }
                 }
