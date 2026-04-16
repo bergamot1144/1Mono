@@ -1,6 +1,7 @@
 package com.konvert.app.ui.home
 
 import android.graphics.BitmapFactory
+import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.min
 import androidx.compose.foundation.Image
@@ -26,9 +27,12 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.PagerSnapDistance
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -226,6 +230,8 @@ private val HomeCardCarouselLayoutReserveHeight = 132.dp
 
 /** Висота пейджера / [HomeCardPlaceholder] — повний вигляд пластини без стиснення. */
 private val HomeCardCarouselPagerVisualHeight = 232.dp
+private val HomeCardCarouselSidePeekOffset = 42.dp
+private val HomeCardCarouselNeighborAlpha = 0.82f
 
 /** Базовий зсув пластини картки вгору; додатково [HomeCardPlateExtraLiftPx] px у [HomeCardPlaceholder]. */
 private val HomeCardPlateOffsetY = (-58).dp
@@ -660,10 +666,10 @@ internal fun HomeCardsTabDashboard(
     onRequestProfileMenu: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val balanceSectionTopPadding =
-        HomeTopBarToBalancePaddingDp + with(LocalDensity.current) { (HomeTopBarToBalancePaddingPx / density).dp }
-
     val density = LocalDensity.current
+    val balanceSectionTopPadding =
+        HomeTopBarToBalancePaddingDp + with(density) { (HomeTopBarToBalancePaddingPx / density).dp }
+
     val navBottomDp = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
     val listBottomContentPadding =
         navBottomDp +
@@ -671,80 +677,102 @@ internal fun HomeCardsTabDashboard(
             HomeBottomBarRowVerticalPadding +
             HomeCardsListBottomGapBeyondBar
 
-    Box(
+    Column(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
     ) {
-        LazyColumn(
-            state = lazyListState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = listBottomContentPadding)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = HomeCardsLazyHorizontalPadding)
         ) {
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onSizeChanged { onHomeScrollContentHeightPx(it.height.toFloat()) }
-                ) {
+            HomeTopBar(onProfileClick = onRequestProfileMenu)
+        }
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            beyondBoundsPageCount = 1,
+            flingBehavior = PagerDefaults.flingBehavior(
+                state = pagerState,
+                pagerSnapDistance = PagerSnapDistance.atMost(1)
+            )
+        ) {
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = listBottomContentPadding)
+            ) {
+                item {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = HomeCardsLazyHorizontalPadding)
+                            .onSizeChanged { onHomeScrollContentHeightPx(it.height.toFloat()) }
                     ) {
-                        HomeTopBar(onProfileClick = onRequestProfileMenu)
-                        Spacer(modifier = Modifier.height(balanceSectionTopPadding))
-                        HomeBalanceBlock()
-                        Spacer(modifier = Modifier.height(HomeCardFogLineTopSpacer))
-                    }
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Box(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(HomeCardFogLineThickness)
-                                .background(HomeCardFogLineColor)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(HomeCardFogScreenGradientHeight)
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        colorStops = arrayOf(
-                                            0f to HomeCardFogLineColor.copy(alpha = 0.48f),
-                                            0.45f to HomeCardFogLineColor.copy(alpha = 0.14f),
-                                            1f to Color.Transparent
+                                .padding(horizontal = HomeCardsLazyHorizontalPadding)
+                        ) {
+                            Spacer(modifier = Modifier.height(balanceSectionTopPadding))
+                            HomeBalanceBlock()
+                            Spacer(modifier = Modifier.height(HomeCardFogLineTopSpacer))
+                        }
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(HomeCardFogLineThickness)
+                                    .background(HomeCardFogLineColor)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(HomeCardFogScreenGradientHeight)
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colorStops = arrayOf(
+                                                0f to HomeCardFogLineColor.copy(alpha = 0.48f),
+                                                0.45f to HomeCardFogLineColor.copy(alpha = 0.14f),
+                                                1f to Color.Transparent
+                                            )
                                         )
                                     )
-                                )
-                        )
-                    }
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = HomeCardsLazyHorizontalPadding)
-                    ) {
-                        Spacer(
-                            modifier = Modifier.height(
-                                (
-                                    HomeSectionGapBalanceToCard -
-                                        HomeCardFogLineTopSpacer -
-                                        HomeCardFogLineThickness -
-                                        HomeCardFogScreenGradientHeight
-                                    ).coerceAtLeast(0.dp)
                             )
-                        )
-                        HomeCardsCarousel(pagerState = pagerState, onCardOpen = onOpenCardDetail)
-                        Spacer(modifier = Modifier.height(HomeSectionGapCarouselToAllCards))
-                        HomeAllCardsChip()
-                        Spacer(modifier = Modifier.height(HomeSectionGapAllCardsToQuick))
-                        HomeQuickActions()
-                        Spacer(modifier = Modifier.height(HomeSectionGapQuickToOperations))
-                        HomeOperationsCard()
-                        Spacer(modifier = Modifier.height(HomeSectionGapOperationsToLimits))
-                        HomeLimitsAbroadCard()
-                        Spacer(modifier = Modifier.height(HomeSectionGapLimitsToUseful))
-                        HomeUsefulCard()
+                        }
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Spacer(
+                                modifier = Modifier.height(
+                                    (
+                                        HomeSectionGapBalanceToCard -
+                                            HomeCardFogLineTopSpacer -
+                                            HomeCardFogLineThickness -
+                                            HomeCardFogScreenGradientHeight
+                                        ).coerceAtLeast(0.dp)
+                                )
+                            )
+                            HomeCardsCarousel(pagerState = pagerState, onCardOpen = onOpenCardDetail)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = HomeCardsLazyHorizontalPadding)
+                            ) {
+                                Spacer(modifier = Modifier.height(HomeSectionGapCarouselToAllCards))
+                                HomeAllCardsChip()
+                                Spacer(modifier = Modifier.height(HomeSectionGapAllCardsToQuick))
+                                HomeQuickActions()
+                                Spacer(modifier = Modifier.height(HomeSectionGapQuickToOperations))
+                                HomeOperationsCard()
+                                Spacer(modifier = Modifier.height(HomeSectionGapOperationsToLimits))
+                                HomeLimitsAbroadCard()
+                                Spacer(modifier = Modifier.height(HomeSectionGapLimitsToUseful))
+                                HomeUsefulCard()
+                            }
+                        }
                     }
                 }
             }
@@ -1300,15 +1328,37 @@ private fun HomeCardsCarousel(
 ) {
     Layout(
         content = {
-            HorizontalPager(
-                state = pagerState,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(HomeCardCarouselPagerVisualHeight),
-                beyondBoundsPageCount = 1,
-                pageSpacing = 12.dp
+                    .height(HomeCardCarouselPagerVisualHeight)
             ) {
-                HomeCardPlaceholder(onCardClick = onCardOpen)
+                val currentPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
+                for (index in 0 until pagerState.pageCount) {
+                    val offset = index - currentPosition
+                    if (abs(offset) <= 1.35f) {
+                        val sidePeekOffset = when {
+                            offset > 0f -> HomeCardCarouselSidePeekOffset
+                            offset < 0f -> -HomeCardCarouselSidePeekOffset
+                            else -> 0.dp
+                        }
+                        HomeCardPlaceholder(
+                            onCardClick = onCardOpen,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer {
+                                    translationX = offset * size.width * 0.78f
+                                    alpha =
+                                        androidx.compose.ui.util.lerp(
+                                            HomeCardCarouselNeighborAlpha,
+                                            1f,
+                                            (1f - abs(offset)).coerceIn(0f, 1f)
+                                        )
+                                }
+                                .offset(x = sidePeekOffset)
+                        )
+                    }
+                }
             }
         },
         modifier = Modifier
@@ -1338,7 +1388,10 @@ private fun HomeCardsCarousel(
 }
 
 @Composable
-private fun HomeCardPlaceholder(onCardClick: () -> Unit = {}) {
+private fun HomeCardPlaceholder(
+    onCardClick: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     val kreditFront = rememberKreditFrontFontFamily()
     val schemeTypefaceFamily = MaterialTheme.typography.titleMedium.fontFamily
     val title = stringResource(R.string.home_card_placeholder)
@@ -1371,8 +1424,7 @@ private fun HomeCardPlaceholder(onCardClick: () -> Unit = {}) {
     val plateOffsetY = HomeCardPlateOffsetY + (-HomeCardPlateExtraLiftPx / density).dp
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .height(HomeCardCarouselPagerVisualHeight)
             .semantics { contentDescription = title },
         contentAlignment = Alignment.TopCenter
