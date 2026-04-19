@@ -1,6 +1,7 @@
 package com.konvert.app.ui.home
 
 import android.graphics.BitmapFactory
+import android.graphics.Typeface
 import kotlin.math.floor
 import kotlin.math.min
 import androidx.compose.foundation.Image
@@ -115,6 +116,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.res.ResourcesCompat
 import com.konvert.app.R
 import com.konvert.app.admin.LocalAppAdmin
 import com.konvert.app.ui.home.tabs.CardsTabScreen
@@ -335,8 +337,8 @@ private const val NavLottieTapMaxFrameInclusive = 15
 /** Lottie «Ще»: при тапі — кадри 0…14 (15 кадрів). */
 private const val MoreNavTapMaxFrameInclusive = 16
 
-/** Lottie «Накопичення»: при тапі — кадри 0…15 (16 кадрів). */
-private const val SavingsNavTapMaxFrameInclusive = 15
+/** Lottie «Накопичення»: при тапі — кадри 0…14 (15 кадрів), після відтворення залишаємось на останньому. */
+private const val SavingsNavTapMaxFrameInclusive = 16
 
 private const val CardsNavLottieAsset = "animations/cards_icon.json"
 private const val CreditsNavLottieAsset = "animations/credits_icon.json"
@@ -348,7 +350,10 @@ private const val MarketNavLottieAsset = "animations/market20_icon.json"
 private fun Modifier.lottieNavInactiveGrayTint(selected: Boolean): Modifier =
     if (selected) this else alpha(0.42f)
 
-/** Вертикальні палітри фону — по одній на кожну сторінку каруселі карт (узгоджено з [HomeCardsCarouselPageCount]). */
+/**
+ * Вертикальні палітри фону — по одній на кожну сторінку каруселі карт (узгоджено з [HomeCardsCarouselPageCount]).
+ * Порядок: чорна → біла з чорним ребром → доларова (зелений акцент) → єврова (червоний акцент).
+ */
 private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
     arrayOf(
         0.00f to Color(0xFF0B0D40),
@@ -363,12 +368,11 @@ private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
         1.00f to Color(0xFF0C0C0C)
     ),
     arrayOf(
-        0.00f to Color(0xFF1A0F45),
-        0.18f to Color(0xFF2E2568),
-        0.34f to Color(0xFF3D3278),
-        0.48f to Color(0xFF252050),
-        0.70f to Color(0xFF100C24),
-        0.82f to Color(0xFF121212),
+        0.00f to Color(0xFFE6E6EC),
+        0.22f to Color(0xFFD6D6DE),
+        0.48f to Color(0xFFC4C4CE),
+        0.72f to Color(0xFF5C5C68),
+        0.88f to Color(0xFF222228),
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
@@ -377,15 +381,6 @@ private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
         0.34f to Color(0xFF124A58),
         0.48f to Color(0xFF0A3038),
         0.70f to Color(0xFF041820),
-        0.82f to Color(0xFF121212),
-        1.00f to Color(0xFF121212)
-    ),
-    arrayOf(
-        0.00f to Color(0xFF062818),
-        0.18f to Color(0xFF0C3D28),
-        0.34f to Color(0xFF104832),
-        0.48f to Color(0xFF082818),
-        0.70f to Color(0xFF041210),
         0.82f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
@@ -402,17 +397,15 @@ private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
 
 private val HomeBgRadialTops: List<Color> = listOf(
     Color(0x332F6DFF),
-    Color(0x337C6DFF),
+    Color(0x33C8C8D8),
     Color(0x3322D3EE),
-    Color(0x334ADE80),
     Color(0x33FF6B6B)
 )
 
 private val HomeBgRadialMids: List<Color> = listOf(
     Color(0x1A4D8DFF),
-    Color(0x1A6D5CFF),
+    Color(0x1A9A9AAA),
     Color(0x1A2EE6A8),
-    Color(0x1A6BCB7A),
     Color(0x1AFF8E53)
 )
 
@@ -648,7 +641,7 @@ fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
 }
 
 /** Кількість карт у каруселі (= ach/r1…r5); фон інтерполюється між сусідніми палітрами під час свайпу. */
-internal const val HomeCardsCarouselPageCount = 5
+internal const val HomeCardsCarouselPageCount = 4
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -1307,8 +1300,9 @@ private fun HomeCardsCarousel(
                     .height(HomeCardCarouselPagerVisualHeight),
                 beyondBoundsPageCount = 1,
                 pageSpacing = 12.dp
-            ) {
-                HomeCardPlaceholder(onCardClick = onCardOpen)
+            ) { page ->
+                val kind = HomeCarouselCardKind.entries[page]
+                HomeCardPlaceholder(kind = kind, onCardClick = onCardOpen)
             }
         },
         modifier = Modifier
@@ -1338,10 +1332,20 @@ private fun HomeCardsCarousel(
 }
 
 @Composable
-private fun HomeCardPlaceholder(onCardClick: () -> Unit = {}) {
+private fun HomeCardPlaceholder(
+    kind: HomeCarouselCardKind = HomeCarouselCardKind.Black,
+    onCardClick: () -> Unit = {}
+) {
     val kreditFront = rememberKreditFrontFontFamily()
     val schemeTypefaceFamily = MaterialTheme.typography.titleMedium.fontFamily
-    val title = stringResource(R.string.home_card_placeholder)
+    val title = stringResource(
+        when (kind) {
+            HomeCarouselCardKind.Black -> R.string.home_carousel_card_black
+            HomeCarouselCardKind.WhiteBlackEdge -> R.string.home_carousel_card_white_black_edge
+            HomeCarouselCardKind.BlackGreenEdgeUsd -> R.string.home_carousel_card_black_green_usd
+            HomeCarouselCardKind.BlackRedEdgeEur -> R.string.home_carousel_card_black_red_eur
+        }
+    )
     val number = stringResource(R.string.home_card_masked_number)
     val visaLogo = rememberAssetImageBitmap(CardVisaLogoAsset)
     val monobankLogo = rememberAssetImageBitmap(CardMonobankNegateAsset)
@@ -1353,18 +1357,28 @@ private fun HomeCardPlaceholder(onCardClick: () -> Unit = {}) {
     val cardTransY = 10f
     val cameraFactor = 15f
 
+    val numberColor = if (kind == HomeCarouselCardKind.WhiteBlackEdge) {
+        Color(0xFF2C2C32)
+    } else {
+        Color(0xFFB1B2B7)
+    }
     val numberStyle = TextStyle(
         fontFamily = kreditFront,
         fontSize = 27.sp,
         letterSpacing = 1.7.sp,
         fontWeight = FontWeight.ExtraBold,
-        color = Color(0xFFB1B2B7)
+        color = numberColor
     )
+    val visaFallbackColor = if (kind == HomeCarouselCardKind.WhiteBlackEdge) {
+        Color(0xFF1A1C22)
+    } else {
+        Color.White
+    }
     val visaFallbackStyle = TextStyle(
         fontFamily = schemeTypefaceFamily ?: FontFamily.Default,
         fontSize = 22.sp,
         fontWeight = FontWeight.Bold,
-        color = Color.White
+        color = visaFallbackColor
     )
 
     val density = LocalDensity.current.density
@@ -1392,6 +1406,8 @@ private fun HomeCardPlaceholder(onCardClick: () -> Unit = {}) {
             cameraDistanceFactor = cameraFactor,
             translationY = cardTransY,
             cardUnfoldProgress = 0f,
+            faceColors = kind.faceColors(),
+            logoColorFilter = kind.negateLogoColorFilter(),
             onCardClick = onCardClick,
             modifier = Modifier
                 .fillMaxWidth()
@@ -2255,6 +2271,11 @@ private fun NavPillSavingsLottieNavItem(
     onSelect: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val savingsNavLottieFontMap = remember(context) {
+        val tf: Typeface? = ResourcesCompat.getFont(context, R.font.roboto_bold)
+        if (tf != null) mapOf("Roboto-Bold" to tf) else emptyMap()
+    }
     val composition by rememberLottieComposition(LottieCompositionSpec.Asset(SavingsNavLottieAsset))
     val anim = rememberLottieAnimatable()
     var playToken by remember { mutableIntStateOf(0) }
@@ -2283,7 +2304,7 @@ private fun NavPillSavingsLottieNavItem(
             clipSpec = LottieClipSpec.Frame(0, SavingsNavTapMaxFrameInclusive),
             iterations = 1
         )
-        anim.snapTo(c, progressForFrame(c, c.startFrame))
+        anim.snapTo(c, progressForFrame(c, SavingsNavTapMaxFrameInclusive.toFloat()))
     }
 
     val tint = if (selected) AccentRed else HomeNavIconInactive
@@ -2308,7 +2329,8 @@ private fun NavPillSavingsLottieNavItem(
             modifier = Modifier
                 .size(BottomBarNavLottieIconSize)
                 .lottieNavInactiveGrayTint(selected),
-            enableMergePaths = true
+            enableMergePaths = true,
+            fontMap = savingsNavLottieFontMap
         )
         Spacer(modifier = Modifier.height(1.dp))
         BottomBarNavLabel(text = label, color = tint)

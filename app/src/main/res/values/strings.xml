@@ -38,6 +38,11 @@
     <string name="home_card_detail_close_cd">Закрити</string>
     <string name="home_card_detail_section_title">Чорна картка</string>
     <string name="home_card_detail_stub_row">Налаштування (заглушка)</string>
+    <!-- Карусель карток: порядок сторінок 1–4 (див. HomeCarouselCardKind). -->
+    <string name="home_carousel_card_black">Чорна картка</string>
+    <string name="home_carousel_card_white_black_edge">Біла картка з чорним ребром</string>
+    <string name="home_carousel_card_black_green_usd">Чорна картка, зелене ребро, доларова</string>
+    <string name="home_carousel_card_black_red_eur">Чорна картка, червоне ребро, єврова</string>
 
     <string name="home_action_transfer">Переказати\nна картку</string>
     <string name="home_action_iban">Платіж\nза IBAN</string>

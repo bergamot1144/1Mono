@@ -25,6 +25,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -125,6 +126,95 @@ private object HomeBankCardPlastic {
     val shadeBlack: Color = Color.Black.copy(alpha = 0.05f)
 }
 
+/**
+ * Кольори пластику (лице + ребро при нахилі), окремо від геометрії [HomeBankCardPlastic].
+ * Порядок у каруселі: [HomeCarouselCardKind] ordinal 0…3.
+ */
+internal data class HomeBankCardFaceColors(
+    val volumeBackTop: Color,
+    val volumeBackBottom: Color,
+    val faceColorStart: Color,
+    val faceColorCenter: Color,
+    val faceColorEnd: Color,
+    val stripWhite: Color,
+    val stripBlue: Color,
+    val hazeBlueOuter: Color,
+    val hazeBlueMid: Color,
+    val bronze: Color,
+    val shadeBlack: Color,
+    val cardFogTopColor: Color,
+    val cardFogMidColor: Color,
+    val fogTopLineColor: Color
+)
+
+internal val HomeBankCardFaceColorsBlack = HomeBankCardFaceColors(
+    volumeBackTop = HomeBankCardPlastic.volumeBackTop,
+    volumeBackBottom = HomeBankCardPlastic.volumeBackBottom,
+    faceColorStart = HomeBankCardPlastic.faceColorStart,
+    faceColorCenter = HomeBankCardPlastic.faceColorCenter,
+    faceColorEnd = HomeBankCardPlastic.faceColorEnd,
+    stripWhite = HomeBankCardPlastic.stripWhite,
+    stripBlue = HomeBankCardPlastic.stripBlue,
+    hazeBlueOuter = HomeBankCardPlastic.hazeBlueOuter,
+    hazeBlueMid = HomeBankCardPlastic.hazeBlueMid,
+    bronze = HomeBankCardPlastic.bronze,
+    shadeBlack = HomeBankCardPlastic.shadeBlack,
+    cardFogTopColor = HomeBankCardPlastic.cardFogTopColor,
+    cardFogMidColor = HomeBankCardPlastic.cardFogMidColor,
+    fogTopLineColor = Color(0xFF102052)
+)
+
+/** Біле лице, товщина / ребро — чорні. */
+private val HomeBankCardFaceColorsWhiteBlackEdge = HomeBankCardFaceColors(
+    volumeBackTop = Color(0xFF0A0A0A),
+    volumeBackBottom = Color(0xFF050505),
+    faceColorStart = Color(0xFFF8F8FA),
+    faceColorCenter = Color(0xFFECECF1),
+    faceColorEnd = Color(0xFFE0E0E8),
+    stripWhite = Color.Black.copy(alpha = 0.045f),
+    stripBlue = Color(0xFF5C6B8A).copy(alpha = 0.07f),
+    hazeBlueOuter = Color(0xFF7A8CAD).copy(alpha = 0.055f),
+    hazeBlueMid = Color(0xFF9DABC4).copy(alpha = 0.028f),
+    bronze = Color(0xFF7A7568).copy(alpha = 0.09f),
+    shadeBlack = Color.Black.copy(alpha = 0.07f),
+    cardFogTopColor = Color(0xFF505050).copy(alpha = 0.09f),
+    cardFogMidColor = Color(0xFF707070).copy(alpha = 0.035f),
+    fogTopLineColor = Color(0xFFD8D8E0)
+)
+
+/** Як чорна базова, ребро — зелене (доларова). */
+private val HomeBankCardFaceColorsBlackGreenEdge = HomeBankCardFaceColorsBlack.copy(
+    volumeBackTop = Color(0xFF0F6A42),
+    volumeBackBottom = Color(0xFF083822)
+)
+
+/** Як чорна базова, ребро — червоне (єврова). */
+private val HomeBankCardFaceColorsBlackRedEdge = HomeBankCardFaceColorsBlack.copy(
+    volumeBackTop = Color(0xFF7A1E26),
+    volumeBackBottom = Color(0xFF3D0E12)
+)
+
+/**
+ * Вид картки в каруселі головного екрану (строго цей порядок: ordinal = сторінка pager).
+ * 1 — чорна, 2 — біла з чорним ребром, 3 — чорна зелене ребро (USD), 4 — чорна червоне ребро (EUR).
+ */
+internal enum class HomeCarouselCardKind {
+    Black,
+    WhiteBlackEdge,
+    BlackGreenEdgeUsd,
+    BlackRedEdgeEur
+}
+
+internal fun HomeCarouselCardKind.faceColors(): HomeBankCardFaceColors = when (this) {
+    HomeCarouselCardKind.Black -> HomeBankCardFaceColorsBlack
+    HomeCarouselCardKind.WhiteBlackEdge -> HomeBankCardFaceColorsWhiteBlackEdge
+    HomeCarouselCardKind.BlackGreenEdgeUsd -> HomeBankCardFaceColorsBlackGreenEdge
+    HomeCarouselCardKind.BlackRedEdgeEur -> HomeBankCardFaceColorsBlackRedEdge
+}
+
+internal fun HomeCarouselCardKind.negateLogoColorFilter(): ColorFilter? =
+    if (this == HomeCarouselCardKind.WhiteBlackEdge) ColorFilter.tint(Color(0xFF141414)) else null
+
 // =============================================================================
 // Опційний прев'ю-картка без тексту / логотипів (для макетів і експериментів)
 // =============================================================================
@@ -172,6 +262,8 @@ internal fun HomeMonoTiltedCard(
     translationY: Float,
     /** 0 — складена, 1 — розгорнута: ребро зникає (див. [HomeMonoCardFaceLayers]). */
     cardUnfoldProgress: Float = 0f,
+    faceColors: HomeBankCardFaceColors = HomeBankCardFaceColorsBlack,
+    logoColorFilter: ColorFilter? = null,
     onCardClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -199,7 +291,7 @@ internal fun HomeMonoTiltedCard(
                     val fogH = size.height * P.cardFogGradientHeightFraction
                     val linePx = 1.dp.toPx()
                     drawRect(
-                        color = Color(0xFF102052),
+                        color = faceColors.fogTopLineColor,
                         topLeft = Offset.Zero,
                         size = Size(size.width, linePx)
                     )
@@ -208,8 +300,8 @@ internal fun HomeMonoTiltedCard(
                         drawRect(
                             brush = Brush.verticalGradient(
                                 colorStops = arrayOf(
-                                    0f to P.cardFogTopColor,
-                                    0.5f to P.cardFogMidColor,
+                                    0f to faceColors.cardFogTopColor,
+                                    0.5f to faceColors.cardFogMidColor,
                                     1f to Color.Transparent
                                 ),
                                 startY = linePx,
@@ -236,6 +328,8 @@ internal fun HomeMonoTiltedCard(
                 monobankContentDescription = monobankContentDescription,
                 visaContentDescription = visaContentDescription,
                 cardUnfoldProgress = cardUnfoldProgress,
+                faceColors = faceColors,
+                logoColorFilter = logoColorFilter,
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -257,8 +351,11 @@ internal fun HomeMonoCardFaceLayers(
     visaContentDescription: String,
     /** 0 — складена, 1 — розгорнута: нижнє ребро зникає (товщина → 0). */
     cardUnfoldProgress: Float = 0f,
+    faceColors: HomeBankCardFaceColors = HomeBankCardFaceColorsBlack,
+    logoColorFilter: ColorFilter? = null,
     modifier: Modifier = Modifier
 ) {
+    val fc = faceColors
     val P = HomeBankCardPlastic
     val unfold = cardUnfoldProgress.coerceIn(0f, 1f)
     Box(modifier = modifier) {
@@ -273,8 +370,8 @@ internal fun HomeMonoCardFaceLayers(
             drawRoundRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        P.volumeBackTop,
-                        P.volumeBackBottom
+                        fc.volumeBackTop,
+                        fc.volumeBackBottom
                     )
                 ),
                 topLeft = Offset(0f, effectiveThickness),
@@ -285,9 +382,9 @@ internal fun HomeMonoCardFaceLayers(
             drawRoundRect(
                 brush = Brush.verticalGradient(
                     colorStops = arrayOf(
-                        0f to P.faceColorStart,
-                        0.5f to P.faceColorCenter,
-                        1f to P.faceColorEnd
+                        0f to fc.faceColorStart,
+                        0.5f to fc.faceColorCenter,
+                        1f to fc.faceColorEnd
                     ),
                     startY = 0f,
                     endY = faceHeight
@@ -299,14 +396,14 @@ internal fun HomeMonoCardFaceLayers(
 
             drawRect(
                 brush = Brush.horizontalGradient(
-                    colors = listOf(P.stripWhite, P.stripBlue, P.stripWhite)
+                    colors = listOf(fc.stripWhite, fc.stripBlue, fc.stripWhite)
                 ),
                 topLeft = Offset(10.dp.toPx(), faceHeight - 4.dp.toPx()),
                 size = Size(cardWidth - 20.dp.toPx(), 5.dp.toPx())
             )
             drawRoundRect(
                 brush = Brush.radialGradient(
-                    colors = listOf(P.hazeBlueOuter, P.hazeBlueMid, Color.Transparent),
+                    colors = listOf(fc.hazeBlueOuter, fc.hazeBlueMid, Color.Transparent),
                     center = Offset(cardWidth * 0.50f, faceHeight * P.hazeBlueCenterYFraction),
                     radius = cardWidth * P.hazeBlueRadiusFactor
                 ),
@@ -322,9 +419,9 @@ internal fun HomeMonoCardFaceLayers(
                     colorStops = arrayOf(
                         0f to Color.Transparent,
                         0.32f to Color.Transparent,
-                        0.52f to P.bronze.copy(alpha = P.bronze.alpha * 0.28f),
-                        0.76f to P.bronze.copy(alpha = P.bronze.alpha * 0.62f),
-                        1f to P.bronze
+                        0.52f to fc.bronze.copy(alpha = fc.bronze.alpha * 0.28f),
+                        0.76f to fc.bronze.copy(alpha = fc.bronze.alpha * 0.62f),
+                        1f to fc.bronze
                     ),
                     center = Offset(
                         cardWidth * P.bronzeRadialCenterXFraction,
@@ -339,7 +436,7 @@ internal fun HomeMonoCardFaceLayers(
 
             drawRoundRect(
                 brush = Brush.linearGradient(
-                    colors = listOf(Color.Transparent, P.shadeBlack),
+                    colors = listOf(Color.Transparent, fc.shadeBlack),
                     start = Offset(cardWidth * 0.58f, faceHeight * 0.30f),
                     end = Offset(cardWidth, faceHeight)
                 ),
@@ -371,7 +468,8 @@ internal fun HomeMonoCardFaceLayers(
                         .offset(x = (-12).dp)
                         .width(L.monobankWidth)
                         .height(L.monobankHeight),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
+                    colorFilter = logoColorFilter
                 )
             }
 
@@ -433,7 +531,8 @@ internal fun HomeMonoCardFaceLayers(
                         .offset(x = visaShiftLeft, y = -L.visaBottomLift)
                         .width(L.visaWidth)
                         .height(L.visaHeight),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
+                    colorFilter = logoColorFilter
                 )
             } else {
                 Text(
