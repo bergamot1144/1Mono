@@ -10,7 +10,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -36,13 +36,17 @@ fun CardsTabScreen(
     val pagerState = rememberPagerState(pageCount = { pageCount })
     val scrollPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
     var cardDetailOpen by remember { mutableStateOf(false) }
-    val homeListStates = remember(pageCount) {
-        Array(pageCount) { LazyListState(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 0) }
-    }
+    val homeListState = rememberLazyListState()
+    var pagerSectionHeightPx by remember { mutableFloatStateOf(0f) }
     val homeScrollOffsetPx by remember {
         derivedStateOf {
-            val idx = pagerState.currentPage.coerceIn(0, pageCount - 1)
-            homeListStates[idx].firstVisibleItemScrollOffset.toFloat()
+            with(homeListState) {
+                if (firstVisibleItemIndex == 0) {
+                    firstVisibleItemScrollOffset.toFloat()
+                } else {
+                    pagerSectionHeightPx + firstVisibleItemScrollOffset.toFloat()
+                }
+            }
         }
     }
     var homeScrollContentHeightPx by remember { mutableFloatStateOf(0f) }
@@ -80,7 +84,8 @@ fun CardsTabScreen(
                 HomeCardsTabDashboard(
                     pagerState = pagerState,
                     onOpenCardDetail = { cardDetailOpen = true },
-                    lazyListStates = homeListStates,
+                    lazyListState = homeListState,
+                    onPagerSectionHeightPx = { pagerSectionHeightPx = it },
                     onHomeScrollContentHeightPx = { homeScrollContentHeightPx = it },
                     onRequestProfileMenu = { profileMenuOpen = true },
                     modifier = Modifier.fillMaxSize()

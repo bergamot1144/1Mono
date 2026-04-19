@@ -4,7 +4,6 @@ import android.graphics.BitmapFactory
 import android.graphics.Typeface
 import kotlin.math.abs
 import kotlin.math.floor
-import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.PI
 import androidx.compose.foundation.Image
@@ -205,10 +204,10 @@ private const val HomeTopBarToBalancePaddingPx: Float = 92f
 private val HomeCardsLazyHorizontalPadding = 16.dp
 
 /**
- * Горизонтальний inset [HorizontalPager] (тонкий край сусідніх сторінок біля центральної картки).
- * Менший за [HomeCardsLazyHorizontalPadding], щоб не «роз'їхався» макет балансу.
+ * Горизонтальний inset [HorizontalPager] — тонкі смуги сусідніх карт біля центральної,
+ * близько до основної пластини (не «широкий» carousel).
  */
-private val HomeCardsPagerHorizontalPeek = 9.dp
+private val HomeCardsPagerHorizontalPeek = 5.dp
 
 /** Мінімальний зазор між сторінками в пейджері (основний рух — нативний scroll пейджера). */
 private val HomeCardsPagerPageSpacing = 0.dp
@@ -713,34 +712,39 @@ fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
 internal const val HomeCardsCarouselPageCount = 4
 
 /**
- * Нормалізований зсув сторінки відносно вибраної: 0 — центр, ±1 — сусід.
- * Той самий прогрес для всього екрана картки (баланс + пластик + блоки нижче).
+ * Нормалізований зсув сторінки: 0 — сторінка в центрі, +1 — на екрані правий сусід, −1 — лівий.
+ * Єдине джерело правди для [HorizontalPager] + [graphicsLayer] (баланс, картка, чип, дії, операції).
  */
 @OptIn(ExperimentalFoundationApi::class)
 private fun pagerPageOffsetForMotion(pagerState: PagerState, page: Int): Float =
     (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
 
 /**
- * Додатковий «гармошковий» шар поверх нативного скролу [HorizontalPager]: легкий scale, rotationY та
- * translationX від [pagerPageOffsetForMotion] (пік натягу посередині жесту).
+ * Упруга «гармошка» поверх нативного скролу пейджера: один [graphicsLayer] на весь вміст сторінки,
+ * без окремої логіки для картки. Натяження ∼ sin(|offset|·π) (максимум посередині жесту, 0 у спокої).
+ * Snap/fling керуються [PagerDefaults.flingBehavior] + spring; цей шар лише візуальний.
  */
 @OptIn(ExperimentalFoundationApi::class)
-private fun Modifier.homeCardsPagerPageMotion(
+private fun Modifier.homeCardsUnifiedPageMotion(
     pagerState: PagerState,
     page: Int,
-    densityMultiplier: Float
-): Modifier = graphicsLayer {
+    densityPx: Float
+): Modifier = this.graphicsLayer {
     val o = pagerPageOffsetForMotion(pagerState, page)
-    val absO = abs(o).coerceIn(0f, 1.25f)
-    val t = min(1f, absO)
-    val bell = sin(t.toDouble() * PI).toFloat()
-    val pullPx = bell * 11f * densityMultiplier
-    scaleX = 1f - 0.022f * t
-    scaleY = scaleX
-    translationX = -pullPx * o.coerceIn(-1f, 1f)
-    transformOrigin = TransformOrigin(0.5f, 0.46f)
-    rotationY = (o * -2.2f).coerceIn(-5f, 5f)
-    cameraDistance = 18f * densityMultiplier
+    val absO = abs(o).coerceIn(0f, 1f)
+    val tension = sin(absO.toDouble() * PI).toFloat()
+    val compression = absO * absO
+    val scaleStrip = lerp(1f, 0.94f, compression)
+    val scaleTension = 1f - 0.014f * tension
+    val s = (scaleStrip * scaleTension).coerceIn(0.9f, 1f)
+    scaleX = s
+    scaleY = s
+    val dir = if (abs(o) < 1e-4f) 0f else if (o > 0f) 1f else -1f
+    translationX = dir * tension * 8f * densityPx
+    transformOrigin = TransformOrigin(0.5f, 0.44f)
+    rotationY = (o * -1.35f).coerceIn(-2.8f, 2.8f)
+    cameraDistance = 14f * densityPx
+    alpha = lerp(1f, 0.88f, absO)
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -748,7 +752,8 @@ private fun Modifier.homeCardsPagerPageMotion(
 internal fun HomeCardsTabDashboard(
     pagerState: PagerState,
     onOpenCardDetail: () -> Unit = {},
-    lazyListStates: Array<LazyListState>,
+    lazyListState: LazyListState,
+    onPagerSectionHeightPx: (Float) -> Unit,
     onHomeScrollContentHeightPx: (Float) -> Unit,
     onRequestProfileMenu: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -778,7 +783,7 @@ internal fun HomeCardsTabDashboard(
     val snapSpring = remember {
         spring<Float>(
             dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMediumLow
+            stiffness = Spring.StiffnessLow
         )
     }
     // PagerDefaults.flingBehavior — @Composable; не викликати всередині remember { }.
@@ -799,91 +804,96 @@ internal fun HomeCardsTabDashboard(
         ) {
             HomeTopBar(onProfileClick = onRequestProfileMenu)
         }
-        HorizontalPager(
-            state = pagerState,
+        LazyColumn(
+            state = lazyListState,
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = HomeCardsPagerHorizontalPeek),
-            pageSpacing = HomeCardsPagerPageSpacing,
-            verticalAlignment = Alignment.Top,
-            beyondBoundsPageCount = 1,
-            flingBehavior = pagerFling
-        ) { page ->
-            val listState = lazyListStates[page]
-            val kind = HomeCarouselCardKind.entries[page]
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
-                    .homeCardsPagerPageMotion(pagerState, page, motionDensity)
-                    .onSizeChanged {
-                        if (page == pagerState.currentPage) {
-                            onHomeScrollContentHeightPx(it.height.toFloat())
-                        }
-                    },
-                contentPadding = PaddingValues(bottom = listBottomAfterCompact)
-            ) {
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = HomeCardsLazyHorizontalPadding)
-                    ) {
-                        Spacer(modifier = Modifier.height(balanceSectionTopPadding))
-                        HomeBalanceBlock()
-                    }
-                }
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = HomeCardsLazyHorizontalPadding)
-                    ) {
-                        Spacer(modifier = Modifier.height(HomeSectionGapBalanceToCard))
-                        Box(
+                .fillMaxWidth()
+                .onSizeChanged { onHomeScrollContentHeightPx(it.height.toFloat()) },
+            contentPadding = PaddingValues(bottom = listBottomAfterCompact)
+        ) {
+            item(key = "home_pager_balance_ops") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onSizeChanged { onPagerSectionHeightPx(it.height.toFloat()) }
+                ) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = HomeCardsPagerHorizontalPeek),
+                        pageSpacing = HomeCardsPagerPageSpacing,
+                        verticalAlignment = Alignment.Top,
+                        beyondBoundsPageCount = 1,
+                        flingBehavior = pagerFling
+                    ) { page ->
+                        val kind = HomeCarouselCardKind.entries[page]
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(HomeCardCarouselLayoutReserveHeight),
-                            contentAlignment = Alignment.TopCenter
+                                .homeCardsUnifiedPageMotion(pagerState, page, motionDensity)
                         ) {
-                            Box(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(HomeCardCarouselPagerVisualHeight)
+                                    .padding(horizontal = HomeCardsLazyHorizontalPadding)
                             ) {
-                                HomeCardPlaceholder(kind = kind, onCardClick = onOpenCardDetail)
+                                Spacer(modifier = Modifier.height(balanceSectionTopPadding))
+                                HomeBalanceBlock()
+                            }
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = HomeCardsLazyHorizontalPadding)
+                            ) {
+                                Spacer(modifier = Modifier.height(HomeSectionGapBalanceToCard))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(HomeCardCarouselLayoutReserveHeight),
+                                    contentAlignment = Alignment.TopCenter
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(HomeCardCarouselPagerVisualHeight)
+                                    ) {
+                                        HomeCardPlaceholder(kind = kind, onCardClick = onOpenCardDetail)
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .offset(y = HomeSectionGapCarouselToAllCards)
+                                ) {
+                                    HomeAllCardsChip()
+                                }
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .offset(y = HomeSectionOffsetQuickActionsAndOperationsY)
+                                ) {
+                                    Spacer(modifier = Modifier.height(HomeSectionGapAllCardsToQuick))
+                                    HomeQuickActions()
+                                    Spacer(modifier = Modifier.height(HomeSectionGapQuickToOperations))
+                                    HomeOperationsCard()
+                                }
                             }
                         }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .offset(y = HomeSectionGapCarouselToAllCards)
-                        ) {
-                            HomeAllCardsChip()
-                        }
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .offset(y = HomeSectionOffsetQuickActionsAndOperationsY)
-                        ) {
-                            Spacer(modifier = Modifier.height(HomeSectionGapAllCardsToQuick))
-                            HomeQuickActions()
-                            Spacer(modifier = Modifier.height(HomeSectionGapQuickToOperations))
-                            HomeOperationsCard()
-                        }
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .offset(y = -compactBelow)
-                        ) {
-                            Spacer(modifier = Modifier.height(spacerOpsToLimitsAfterCompact))
-                            HomeLimitsAbroadCard()
-                            Spacer(modifier = Modifier.height(spacerLimitsToUsefulAfterCompact))
-                            HomeUsefulCard()
-                        }
                     }
+                }
+            }
+            item(key = "home_below_ops_static") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = HomeCardsLazyHorizontalPadding)
+                        .offset(y = -compactBelow)
+                ) {
+                    Spacer(modifier = Modifier.height(spacerOpsToLimitsAfterCompact))
+                    HomeLimitsAbroadCard()
+                    Spacer(modifier = Modifier.height(spacerLimitsToUsefulAfterCompact))
+                    HomeUsefulCard()
                 }
             }
         }
@@ -900,7 +910,7 @@ internal suspend fun PagerState.animateHomeCardPageSpring(targetPage: Int) {
         pageOffsetFraction = 0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMediumLow
+            stiffness = Spring.StiffnessLow
         )
     )
 }
