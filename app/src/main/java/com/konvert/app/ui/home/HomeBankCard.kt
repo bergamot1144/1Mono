@@ -29,7 +29,6 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -46,13 +45,13 @@ import androidx.compose.ui.unit.dp
 /** Ширина й висота пластини в слоті каруселі (ширше — сильніший ефект «трапеції» при наклоні). */
 private object HomeBankCardFrame {
     /** Базова ширина; у [HomeMonoTiltedCard] віднімається [HomeBankCardWidthNarrowPxTotal] px. */
-    val width: Dp = 320.dp
+    val width: Dp = 308.dp
     /** Висота пластини в [HomeMonoTiltedCard] (нижче — компактніший слот каруселі). */
-    val height: Dp = 240.dp
+    val height: Dp = 270.dp
 }
 
 /** Сума віднімання від базової ширини в px (перерахунок у dp у [HomeMonoTiltedCard]). */
-private const val HomeBankCardWidthNarrowPxTotal: Float = 20f
+private const val HomeBankCardWidthNarrowPxTotal: Float = 12f
 
 /** Відступи контенту (логотип, номер, Visa) поверх Canvas. */
 private object HomeBankCardContentPadding {
@@ -79,9 +78,6 @@ private object HomeBankCardLogos {
  * **Синя «димка» на пластику (лице):** [hazeBlueOuter], [hazeBlueMid] — інтенсивність;
  * [hazeBlueCenterYFraction] (0..1 по висоті лиця) — вертикаль центра радіалу;
  * [hazeBlueRadiusFactor] — радіус як частка ширини картки.
- *
- * **Туман поверх верху картки** (накладається в [HomeMonoTiltedCard] поверх усього лиця): [cardFogTopColor],
- * [cardFogMidColor], [cardFogGradientHeightFraction].
  */
 private object HomeBankCardPlastic {
     val cornerRadius: Dp = 20.dp
@@ -107,12 +103,6 @@ private object HomeBankCardPlastic {
     val hazeBlueMid: Color = Color(0xFF223C6B).copy(alpha = 0.055f)
     const val hazeBlueCenterYFraction: Float = 0.12f
     const val hazeBlueRadiusFactor: Float = 0.56f
-
-    // --- Туман поверх верху пластини (linear поверх контенту в [HomeMonoTiltedCard]; трохи затемнює monobank) ---
-    val cardFogTopColor: Color = Color(0xFF102052).copy(alpha = 0.38f)
-    val cardFogMidColor: Color = Color(0xFF102052).copy(alpha = 0.14f)
-    /** Висота зони градієнта туману як частка висоти пластини. */
-    const val cardFogGradientHeightFraction: Float = 0.56f
 
     /** Теплий бронзовий відтінок — накладається радіально від центру лиця. */
     val bronze: Color = Color(0xFF27262E).copy(alpha = 0.16f)
@@ -141,10 +131,7 @@ internal data class HomeBankCardFaceColors(
     val hazeBlueOuter: Color,
     val hazeBlueMid: Color,
     val bronze: Color,
-    val shadeBlack: Color,
-    val cardFogTopColor: Color,
-    val cardFogMidColor: Color,
-    val fogTopLineColor: Color
+    val shadeBlack: Color
 )
 
 internal val HomeBankCardFaceColorsBlack = HomeBankCardFaceColors(
@@ -154,14 +141,11 @@ internal val HomeBankCardFaceColorsBlack = HomeBankCardFaceColors(
     faceColorCenter = HomeBankCardPlastic.faceColorCenter,
     faceColorEnd = HomeBankCardPlastic.faceColorEnd,
     stripWhite = HomeBankCardPlastic.stripWhite,
-    stripBlue = HomeBankCardPlastic.stripBlue,
-    hazeBlueOuter = HomeBankCardPlastic.hazeBlueOuter,
-    hazeBlueMid = HomeBankCardPlastic.hazeBlueMid,
+    stripBlue = Color(0xFF3E5590).copy(alpha = 0.075f),
+    hazeBlueOuter = Color(0xFF243A78).copy(alpha = 0.09f),
+    hazeBlueMid = Color(0xFF152850).copy(alpha = 0.048f),
     bronze = HomeBankCardPlastic.bronze,
-    shadeBlack = HomeBankCardPlastic.shadeBlack,
-    cardFogTopColor = HomeBankCardPlastic.cardFogTopColor,
-    cardFogMidColor = HomeBankCardPlastic.cardFogMidColor,
-    fogTopLineColor = Color(0xFF102052)
+    shadeBlack = HomeBankCardPlastic.shadeBlack
 )
 
 /** Біле лице, товщина / ребро — чорні. */
@@ -172,26 +156,29 @@ private val HomeBankCardFaceColorsWhiteBlackEdge = HomeBankCardFaceColors(
     faceColorCenter = Color(0xFFECECF1),
     faceColorEnd = Color(0xFFE0E0E8),
     stripWhite = Color.Black.copy(alpha = 0.045f),
-    stripBlue = Color(0xFF5C6B8A).copy(alpha = 0.07f),
-    hazeBlueOuter = Color(0xFF7A8CAD).copy(alpha = 0.055f),
-    hazeBlueMid = Color(0xFF9DABC4).copy(alpha = 0.028f),
+    stripBlue = Color(0xFF5A4580).copy(alpha = 0.065f),
+    hazeBlueOuter = Color(0xFF4A2C78).copy(alpha = 0.055f),
+    hazeBlueMid = Color(0xFF3A2062).copy(alpha = 0.03f),
     bronze = Color(0xFF7A7568).copy(alpha = 0.09f),
-    shadeBlack = Color.Black.copy(alpha = 0.07f),
-    cardFogTopColor = Color(0xFF505050).copy(alpha = 0.09f),
-    cardFogMidColor = Color(0xFF707070).copy(alpha = 0.035f),
-    fogTopLineColor = Color(0xFFD8D8E0)
+    shadeBlack = Color.Black.copy(alpha = 0.07f)
 )
 
 /** Як чорна базова, ребро — зелене (доларова). */
 private val HomeBankCardFaceColorsBlackGreenEdge = HomeBankCardFaceColorsBlack.copy(
     volumeBackTop = Color(0xFF0F6A42),
-    volumeBackBottom = Color(0xFF083822)
+    volumeBackBottom = Color(0xFF083822),
+    stripBlue = Color(0xFF1A5868).copy(alpha = 0.07f),
+    hazeBlueOuter = Color(0xFF0D5E6E).copy(alpha = 0.08f),
+    hazeBlueMid = Color(0xFF063E48).copy(alpha = 0.042f)
 )
 
 /** Як чорна базова, ребро — червоне (єврова). */
 private val HomeBankCardFaceColorsBlackRedEdge = HomeBankCardFaceColorsBlack.copy(
     volumeBackTop = Color(0xFF7A1E26),
-    volumeBackBottom = Color(0xFF3D0E12)
+    volumeBackBottom = Color(0xFF3D0E12),
+    stripBlue = Color(0xFF603040).copy(alpha = 0.068f),
+    hazeBlueOuter = Color(0xFF682038).copy(alpha = 0.075f),
+    hazeBlueMid = Color(0xFF401424).copy(alpha = 0.04f)
 )
 
 /**
@@ -284,33 +271,6 @@ internal fun HomeMonoTiltedCard(
                     cameraDistance = cameraDistanceFactor * density
                     transformOrigin = TransformOrigin.Center
                     this.translationY = translationY
-                }
-                .drawWithContent {
-                    drawContent()
-                    val P = HomeBankCardPlastic
-                    val fogH = size.height * P.cardFogGradientHeightFraction
-                    val linePx = 1.dp.toPx()
-                    drawRect(
-                        color = faceColors.fogTopLineColor,
-                        topLeft = Offset.Zero,
-                        size = Size(size.width, linePx)
-                    )
-                    val fogBodyH = (fogH - linePx).coerceAtLeast(0f)
-                    if (fogBodyH > 0f) {
-                        drawRect(
-                            brush = Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0f to faceColors.cardFogTopColor,
-                                    0.5f to faceColors.cardFogMidColor,
-                                    1f to Color.Transparent
-                                ),
-                                startY = linePx,
-                                endY = fogH
-                            ),
-                            topLeft = Offset(0f, linePx),
-                            size = Size(size.width, fogBodyH)
-                        )
-                    }
                 }
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },

@@ -2,8 +2,11 @@ package com.konvert.app.ui.home
 
 import android.graphics.BitmapFactory
 import android.graphics.Typeface
+import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.min
+import kotlin.math.sin
+import kotlin.math.PI
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
@@ -28,8 +31,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -63,7 +68,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
@@ -81,8 +88,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.alpha
@@ -98,6 +103,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -195,17 +201,20 @@ private val HomeCardsListBottomGapBeyondBar = 38.dp
 private val HomeTopBarToBalancePaddingDp = 44.dp
 private const val HomeTopBarToBalancePaddingPx: Float = 92f
 
-/** Лінія #102052 та екранний градієнт туману над каруселлю (узгоджено з [HomeMonoTiltedCard]). */
-private val HomeCardFogLineColor = Color(0xFF102052)
-private val HomeCardFogLineTopSpacer = 4.dp
-private val HomeCardFogLineThickness = 1.dp
-/** Вертикальний градієнт під лінією (edge-to-edge); висота входить у [HomeSectionGapBalanceToCard]. */
-private val HomeCardFogScreenGradientHeight = 52.dp
-/** Горизонтальний відступ [LazyColumn] — для full-bleed лінії/градієнта. */
+/** Горизонтальний відступ [LazyColumn]. */
 private val HomeCardsLazyHorizontalPadding = 16.dp
 
-/** Між нижнім краєм балансу (чипи) і верхом каруселі: базовий зазор + зона градієнта під лінією. */
-private val HomeSectionGapBalanceToCard = 18.dp + HomeCardFogScreenGradientHeight
+/**
+ * Горизонтальний inset [HorizontalPager] (тонкий край сусідніх сторінок біля центральної картки).
+ * Менший за [HomeCardsLazyHorizontalPadding], щоб не «роз'їхався» макет балансу.
+ */
+private val HomeCardsPagerHorizontalPeek = 9.dp
+
+/** Мінімальний зазор між сторінками в пейджері (основний рух — нативний scroll пейджера). */
+private val HomeCardsPagerPageSpacing = 0.dp
+
+/** Між нижнім краєм балансу (чипи) і верхом каруселі. */
+private val HomeSectionGapBalanceToCard = 70.dp
 
 /** Зовнішній блок навколо пунктів «Особисті дані…» / «Налаштування…». */
 private val HomeProfileMenuOuterBlockColor = Color(0xFF272727)
@@ -222,32 +231,62 @@ private val HomeProfileMenuSheetShape = RoundedCornerShape(18.dp)
 
 /**
  * Висота, яку займає блок каруселі в [LazyColumn] — мала, щоб «Усі картки» та нижній контент піднялись.
- * Фактична висота [HorizontalPager] і картки — [HomeCardCarouselPagerVisualHeight] (через кастомний [Layout]).
+ * Має бути достатньою під вищу пластину [HomeBankCardFrame] + нахил.
  */
-private val HomeCardCarouselLayoutReserveHeight = 132.dp
+private val HomeCardCarouselLayoutReserveHeight = 220.dp
 
-/** Висота пейджера / [HomeCardPlaceholder] — повний вигляд пластини без стиснення. */
-private val HomeCardCarouselPagerVisualHeight = 232.dp
+/** Висота слота під [HomeCardPlaceholder] — під вищу/ширшу пластину в [HomeMonoTiltedCard]. */
+private val HomeCardCarouselPagerVisualHeight = 248.dp
 
-/** Базовий зсув пластини картки вгору; додатково [HomeCardPlateExtraLiftPx] px у [HomeCardPlaceholder]. */
-private val HomeCardPlateOffsetY = (-58).dp
+/**
+ * Вертикаль пластики на головному екрані (наклон «від користувача»):
+ * - [HomeCardPlateOffsetY] + [HomeCardPlateExtraLiftPx] — базовий зсув у [HomeCardPlaceholder] (`plateOffsetY`);
+ * - [HomeCardCarouselPlateNudgeY] — тонке доналаштування вгору/вниз без перерахунку px;
+ * - у [HomeCardPlaceholder]: `rotX` (кут нахилу), `cardTransY` (translationY у [HomeMonoTiltedCard], більше — нижче на екрані).
+ */
+private val HomeCardPlateOffsetY = (-30).dp
 
 /** Додатково підняти пластину (px → dp разом із [HomeCardPlateOffsetY]). */
 private const val HomeCardPlateExtraLiftPx: Float = 56f
 
-/** Підняти весь блок балансу вгору (px → dp у [HomeBalanceBlock]). */
-private const val HomeBalanceVerticalLiftPx: Float = 40f
+/** Додатковий зсув пластини вгору на каруселі (негативний = вище). */
+private val HomeCardCarouselPlateNudgeY = (-45).dp
 
-/** Між зарезервованим низом блоку каруселі й «Усі картки» (нижня частина картки може наїжджати в цей відступ). */
-private val HomeSectionGapCarouselToAllCards = 8.dp
+/** Підняти весь блок балансу вгору (px → dp у [HomeBalanceBlock]). */
+private const val HomeBalanceVerticalLiftPx: Float = 50f
+
+/**
+ * Зсув чипа «Усі картки» по вертикалі відносно місця після блоку пластини.
+ * **Негативний** — малює чип вище (ближче до картки). Реалізовано через [Modifier.offset], бо
+ * `Spacer(height = негатив)` у [Column] зазвичай **обрізається до 0** під час measure — великі
+ * від’ємні значення там «не працюють».
+ *
+ * Щоб підняти контент у **розкладці** (а не лише намалювати вище), зменшуйте [HomeCardCarouselLayoutReserveHeight]
+ * або висоту слота [HomeCardCarouselPagerVisualHeight].
+ */
+private val HomeSectionGapCarouselToAllCards = (-122).dp
+
+/**
+ * Додатковий зсув блоку «Швидкі дії» + «Операції» вгору (до чипа «Усі картки»), той самий прийом, що й [Modifier.offset] для чипа.
+ * Негативний — вище.
+ */
+private val HomeSectionOffsetQuickActionsAndOperationsY = (-105).dp
+
 /** Між «Усі картки» і швидкими діями — ~40 px. */
 private val HomeSectionGapAllCardsToQuick = 10.dp
 /** Між швидкими діями і блоком «Операції». */
-private val HomeSectionGapQuickToOperations = 6.dp
+private val HomeSectionGapQuickToOperations = 16.dp
 /** Між блоком «Операції» (перший item) і «Ліміти та обмеження». */
 private val HomeSectionGapOperationsToLimits = 14.dp
 /** Між «Ліміти та обмеження» і «Корисне». */
 private val HomeSectionGapLimitsToUseful = 20.dp
+
+/**
+ * Підняти блоки **під** «Операції» (ліміти + корисне) до операцій і на **ту саму** величину скоротити
+ * вертикальний хвіст сторінки: спочатку зменшуються [HomeSectionGapOperationsToLimits] та
+ * [HomeSectionGapLimitsToUseful], решта — з нижнього [PaddingValues] [LazyColumn].
+ */
+private val HomeSectionCompactBelowOperationsDp = 56.dp
 
 /** У «Корисне»: однаковий горизонтальний inset для ряду курсів і сітки плиток. */
 private val HomeUsefulInnerHorizontalPadding = 10.dp
@@ -352,7 +391,7 @@ private fun Modifier.lottieNavInactiveGrayTint(selected: Boolean): Modifier =
 
 /**
  * Вертикальні палітри фону — по одній на кожну сторінку каруселі карт (узгоджено з [HomeCardsCarouselPageCount]).
- * Порядок: чорна → біла з чорним ребром → доларова (зелений акцент) → єврова (червоний акцент).
+ * Порядок: чорна → біла (пурпур) → чорно-зелена (темна бірюза) → чорно-червона (малина).
  */
 private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
     arrayOf(
@@ -368,28 +407,30 @@ private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
         1.00f to Color(0xFF0C0C0C)
     ),
     arrayOf(
-        0.00f to Color(0xFFE6E6EC),
-        0.22f to Color(0xFFD6D6DE),
-        0.48f to Color(0xFFC4C4CE),
-        0.72f to Color(0xFF5C5C68),
-        0.88f to Color(0xFF222228),
+        0.00f to Color(0xFF281040),
+        0.14f to Color(0xFF3A2062),
+        0.30f to Color(0xFF4A2C78),
+        0.48f to Color(0xFF321C52),
+        0.66f to Color(0xFF1A102E),
+        0.82f to Color(0xFF141020),
+        0.92f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
-        0.00f to Color(0xFF062A32),
-        0.18f to Color(0xFF0D3D48),
-        0.34f to Color(0xFF124A58),
-        0.48f to Color(0xFF0A3038),
-        0.70f to Color(0xFF041820),
+        0.00f to Color(0xFF032E38),
+        0.16f to Color(0xFF084A5A),
+        0.32f to Color(0xFF0D5E6E),
+        0.48f to Color(0xFF063E48),
+        0.68f to Color(0xFF021C24),
         0.82f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
-        0.00f to Color(0xFF2A1010),
-        0.18f to Color(0xFF451818),
-        0.34f to Color(0xFF5A2220),
-        0.48f to Color(0xFF381414),
-        0.70f to Color(0xFF140A0A),
+        0.00f to Color(0xFF38101C),
+        0.16f to Color(0xFF521828),
+        0.32f to Color(0xFF682038),
+        0.48f to Color(0xFF401424),
+        0.68f to Color(0xFF180810),
         0.82f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     )
@@ -397,16 +438,16 @@ private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
 
 private val HomeBgRadialTops: List<Color> = listOf(
     Color(0x332F6DFF),
-    Color(0x33C8C8D8),
-    Color(0x3322D3EE),
-    Color(0x33FF6B6B)
+    Color(0x44A78BFA),
+    Color(0x3320D4CE),
+    Color(0x44FF5C9A)
 )
 
 private val HomeBgRadialMids: List<Color> = listOf(
     Color(0x1A4D8DFF),
-    Color(0x1A9A9AAA),
-    Color(0x1A2EE6A8),
-    Color(0x1AFF8E53)
+    Color(0x28654DDC),
+    Color(0x24168A8A),
+    Color(0x28CC3D72)
 )
 
 /** Затемнення для режиму «лише вікно» (немає виміряної висоти контенту). */
@@ -419,15 +460,38 @@ private val HomeBgOverlayStops: Array<Pair<Float, Color>> = arrayOf(
 )
 
 /**
- * Вертикальний градієнт у координатах **усього** скрол-контенту (0% — верх сторінки, 100% — низ «Корисне»).
- * Перехід у темряву зміщено на ~15% нижче (раніше 20/30/40% → 35/45/55%).
+ * Вертикальний градієнт у координатах усього скрол-контенту (як у HEAD: ті самі стопи 0/35/45/55/100%),
+ * окрема палітра на кожну картку — інтерполяція по [cardScrollPosition] як у [HomeBgMainPalettes].
  */
-private val HomeBgContentScrollStops: Array<Pair<Float, Color>> = arrayOf(
-    0.00f to Color(0xFF0C0F44),
-    0.35f to Color(0xFF122859),
-    0.45f to Color(0xFF101b2f),
-    0.55f to Color(0xFF121212),
-    1.00f to Color(0xFF121212)
+private val HomeBgContentScrollPalettes: List<Array<Pair<Float, Color>>> = listOf(
+    arrayOf(
+        0.00f to Color(0xFF0C0F44),
+        0.35f to Color(0xFF122859),
+        0.45f to Color(0xFF101b2f),
+        0.55f to Color(0xFF121212),
+        1.00f to Color(0xFF121212)
+    ),
+    arrayOf(
+        0.00f to Color(0xFF281040),
+        0.35f to Color(0xFF3A2060),
+        0.45f to Color(0xFF1A1028),
+        0.55f to Color(0xFF121212),
+        1.00f to Color(0xFF121212)
+    ),
+    arrayOf(
+        0.00f to Color(0xFF042830),
+        0.35f to Color(0xFF0E4A58),
+        0.45f to Color(0xFF061C22),
+        0.55f to Color(0xFF121212),
+        1.00f to Color(0xFF121212)
+    ),
+    arrayOf(
+        0.00f to Color(0xFF321018),
+        0.35f to Color(0xFF4A1830),
+        0.45f to Color(0xFF200C14),
+        0.55f to Color(0xFF121212),
+        1.00f to Color(0xFF121212)
+    )
 )
 
 private fun colorAlongStops(stops: Array<Pair<Float, Color>>, fraction: Float): Color {
@@ -480,6 +544,11 @@ fun StaticHomeBackground(
     val next = (i + 1).coerceAtMost(paletteN - 1)
     val tLocal = if (next == i) 0f else (seg - i).coerceIn(0f, 1f)
     val mainStops = lerpColorStops(HomeBgMainPalettes[i], HomeBgMainPalettes[next], tLocal)
+    val contentScrollStops = lerpColorStops(
+        HomeBgContentScrollPalettes[i],
+        HomeBgContentScrollPalettes[next],
+        tLocal
+    )
     val radialTop = lerp(HomeBgRadialTops[i], HomeBgRadialTops[next], tLocal)
     val radialMid = lerp(HomeBgRadialMids[i], HomeBgRadialMids[next], tLocal)
 
@@ -498,7 +567,7 @@ fun StaticHomeBackground(
                     val gradEnd = Offset(0f, ch - scroll)
                     drawRect(
                         brush = Brush.linearGradient(
-                            colorStops = HomeBgContentScrollStops,
+                            colorStops = contentScrollStops,
                             start = gradStart,
                             end = gradEnd
                         ),
@@ -643,12 +712,43 @@ fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
 /** Кількість карт у каруселі (= ach/r1…r5); фон інтерполюється між сусідніми палітрами під час свайпу. */
 internal const val HomeCardsCarouselPageCount = 4
 
+/**
+ * Нормалізований зсув сторінки відносно вибраної: 0 — центр, ±1 — сусід.
+ * Той самий прогрес для всього екрана картки (баланс + пластик + блоки нижче).
+ */
+@OptIn(ExperimentalFoundationApi::class)
+private fun pagerPageOffsetForMotion(pagerState: PagerState, page: Int): Float =
+    (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+
+/**
+ * Додатковий «гармошковий» шар поверх нативного скролу [HorizontalPager]: легкий scale, rotationY та
+ * translationX від [pagerPageOffsetForMotion] (пік натягу посередині жесту).
+ */
+@OptIn(ExperimentalFoundationApi::class)
+private fun Modifier.homeCardsPagerPageMotion(
+    pagerState: PagerState,
+    page: Int,
+    densityMultiplier: Float
+): Modifier = graphicsLayer {
+    val o = pagerPageOffsetForMotion(pagerState, page)
+    val absO = abs(o).coerceIn(0f, 1.25f)
+    val t = min(1f, absO)
+    val bell = sin(t.toDouble() * PI).toFloat()
+    val pullPx = bell * 11f * densityMultiplier
+    scaleX = 1f - 0.022f * t
+    scaleY = scaleX
+    translationX = -pullPx * o.coerceIn(-1f, 1f)
+    transformOrigin = TransformOrigin(0.5f, 0.46f)
+    rotationY = (o * -2.2f).coerceIn(-5f, 5f)
+    cameraDistance = 18f * densityMultiplier
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun HomeCardsTabDashboard(
     pagerState: PagerState,
     onOpenCardDetail: () -> Unit = {},
-    lazyListState: LazyListState,
+    lazyListStates: Array<LazyListState>,
     onHomeScrollContentHeightPx: (Float) -> Unit,
     onRequestProfileMenu: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -663,86 +763,146 @@ internal fun HomeCardsTabDashboard(
             BottomBarHeight +
             HomeBottomBarRowVerticalPadding +
             HomeCardsListBottomGapBeyondBar
+    val compactBelow = HomeSectionCompactBelowOperationsDp
+    var debtRemDp = compactBelow.value
+    val takeOpsLimits = kotlin.math.min(debtRemDp, HomeSectionGapOperationsToLimits.value)
+    val spacerOpsToLimitsAfterCompact = (HomeSectionGapOperationsToLimits.value - takeOpsLimits).dp
+    debtRemDp -= takeOpsLimits
+    val takeLimitsUseful = kotlin.math.min(debtRemDp, HomeSectionGapLimitsToUseful.value)
+    val spacerLimitsToUsefulAfterCompact = (HomeSectionGapLimitsToUseful.value - takeLimitsUseful).dp
+    debtRemDp -= takeLimitsUseful
+    val listBottomAfterCompact =
+        (listBottomContentPadding.value - debtRemDp).coerceAtLeast(0f).dp
+    val motionDensity = density.density
 
-    Box(
+    val snapSpring = remember {
+        spring<Float>(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        )
+    }
+    // PagerDefaults.flingBehavior — @Composable; не викликати всередині remember { }.
+    val pagerFling = PagerDefaults.flingBehavior(
+        state = pagerState,
+        snapAnimationSpec = snapSpring
+    )
+
+    Column(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
     ) {
-        LazyColumn(
-            state = lazyListState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = listBottomContentPadding)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = HomeCardsLazyHorizontalPadding)
         ) {
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onSizeChanged { onHomeScrollContentHeightPx(it.height.toFloat()) }
-                ) {
+            HomeTopBar(onProfileClick = onRequestProfileMenu)
+        }
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = HomeCardsPagerHorizontalPeek),
+            pageSpacing = HomeCardsPagerPageSpacing,
+            verticalAlignment = Alignment.Top,
+            beyondBoundsPageCount = 1,
+            flingBehavior = pagerFling
+        ) { page ->
+            val listState = lazyListStates[page]
+            val kind = HomeCarouselCardKind.entries[page]
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .homeCardsPagerPageMotion(pagerState, page, motionDensity)
+                    .onSizeChanged {
+                        if (page == pagerState.currentPage) {
+                            onHomeScrollContentHeightPx(it.height.toFloat())
+                        }
+                    },
+                contentPadding = PaddingValues(bottom = listBottomAfterCompact)
+            ) {
+                item {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = HomeCardsLazyHorizontalPadding)
                     ) {
-                        HomeTopBar(onProfileClick = onRequestProfileMenu)
                         Spacer(modifier = Modifier.height(balanceSectionTopPadding))
                         HomeBalanceBlock()
-                        Spacer(modifier = Modifier.height(HomeCardFogLineTopSpacer))
                     }
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(HomeCardFogLineThickness)
-                                .background(HomeCardFogLineColor)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(HomeCardFogScreenGradientHeight)
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        colorStops = arrayOf(
-                                            0f to HomeCardFogLineColor.copy(alpha = 0.48f),
-                                            0.45f to HomeCardFogLineColor.copy(alpha = 0.14f),
-                                            1f to Color.Transparent
-                                        )
-                                    )
-                                )
-                        )
-                    }
+                }
+                item {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = HomeCardsLazyHorizontalPadding)
                     ) {
-                        Spacer(
-                            modifier = Modifier.height(
-                                (
-                                    HomeSectionGapBalanceToCard -
-                                        HomeCardFogLineTopSpacer -
-                                        HomeCardFogLineThickness -
-                                        HomeCardFogScreenGradientHeight
-                                    ).coerceAtLeast(0.dp)
-                            )
-                        )
-                        HomeCardsCarousel(pagerState = pagerState, onCardOpen = onOpenCardDetail)
-                        Spacer(modifier = Modifier.height(HomeSectionGapCarouselToAllCards))
-                        HomeAllCardsChip()
-                        Spacer(modifier = Modifier.height(HomeSectionGapAllCardsToQuick))
-                        HomeQuickActions()
-                        Spacer(modifier = Modifier.height(HomeSectionGapQuickToOperations))
-                        HomeOperationsCard()
-                        Spacer(modifier = Modifier.height(HomeSectionGapOperationsToLimits))
-                        HomeLimitsAbroadCard()
-                        Spacer(modifier = Modifier.height(HomeSectionGapLimitsToUseful))
-                        HomeUsefulCard()
+                        Spacer(modifier = Modifier.height(HomeSectionGapBalanceToCard))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(HomeCardCarouselLayoutReserveHeight),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(HomeCardCarouselPagerVisualHeight)
+                            ) {
+                                HomeCardPlaceholder(kind = kind, onCardClick = onOpenCardDetail)
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .offset(y = HomeSectionGapCarouselToAllCards)
+                        ) {
+                            HomeAllCardsChip()
+                        }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .offset(y = HomeSectionOffsetQuickActionsAndOperationsY)
+                        ) {
+                            Spacer(modifier = Modifier.height(HomeSectionGapAllCardsToQuick))
+                            HomeQuickActions()
+                            Spacer(modifier = Modifier.height(HomeSectionGapQuickToOperations))
+                            HomeOperationsCard()
+                        }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .offset(y = -compactBelow)
+                        ) {
+                            Spacer(modifier = Modifier.height(spacerOpsToLimitsAfterCompact))
+                            HomeLimitsAbroadCard()
+                            Spacer(modifier = Modifier.height(spacerLimitsToUsefulAfterCompact))
+                            HomeUsefulCard()
+                        }
                     }
                 }
             }
         }
     }
+}
+
+/**
+ * Програмний перехід між сторінками карток з тією ж spring-спекою, що й [PagerDefaults.flingBehavior].
+ */
+@OptIn(ExperimentalFoundationApi::class)
+internal suspend fun PagerState.animateHomeCardPageSpring(targetPage: Int) {
+    this.animateScrollToPage(
+        page = targetPage.coerceIn(0, HomeCardsCarouselPageCount - 1),
+        pageOffsetFraction = 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        )
+    )
 }
 
 private val HomeProfileMenuScrimColor = Color.Black.copy(alpha = 0.62f)
@@ -1285,52 +1445,6 @@ private fun BalanceChip(icon: @Composable () -> Unit, text: String) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun HomeCardsCarousel(
-    pagerState: PagerState,
-    onCardOpen: () -> Unit = {}
-) {
-    Layout(
-        content = {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(HomeCardCarouselPagerVisualHeight),
-                beyondBoundsPageCount = 1,
-                pageSpacing = 12.dp
-            ) { page ->
-                val kind = HomeCarouselCardKind.entries[page]
-                HomeCardPlaceholder(kind = kind, onCardClick = onCardOpen)
-            }
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .graphicsLayer { clip = false }
-    ) { measurables, constraints ->
-        val pager = measurables.single()
-        val visualPx = HomeCardCarouselPagerVisualHeight.roundToPx()
-        val reservePx = HomeCardCarouselLayoutReserveHeight.roundToPx()
-        val childMaxH = if (constraints.maxHeight == Constraints.Infinity) {
-            visualPx
-        } else {
-            min(visualPx, constraints.maxHeight).coerceAtLeast(constraints.minHeight)
-        }
-        val placeable = pager.measure(
-            constraints.copy(
-                minHeight = 0,
-                maxHeight = childMaxH
-            )
-        )
-        val w = constraints.maxWidth.coerceIn(constraints.minWidth, constraints.maxWidth)
-        val h = reservePx.coerceIn(constraints.minHeight, constraints.maxHeight)
-        layout(w, h) {
-            placeable.place(0, 0)
-        }
-    }
-}
-
 @Composable
 private fun HomeCardPlaceholder(
     kind: HomeCarouselCardKind = HomeCarouselCardKind.Black,
@@ -1382,7 +1496,8 @@ private fun HomeCardPlaceholder(
     )
 
     val density = LocalDensity.current.density
-    val plateOffsetY = HomeCardPlateOffsetY + (-HomeCardPlateExtraLiftPx / density).dp
+    val plateOffsetY =
+        HomeCardPlateOffsetY + (-HomeCardPlateExtraLiftPx / density).dp + HomeCardCarouselPlateNudgeY
 
     Box(
         modifier = Modifier
@@ -1539,10 +1654,10 @@ internal fun HomeCardDetailScreen(onClose: () -> Unit) {
 }
 
 @Composable
-private fun HomeAllCardsChip() {
+private fun HomeAllCardsChip(modifier: Modifier = Modifier) {
     val allCardsIcon = rememberAssetImageBitmap(HomeAllCardsChipIconAsset)
     Box(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
         Row(
