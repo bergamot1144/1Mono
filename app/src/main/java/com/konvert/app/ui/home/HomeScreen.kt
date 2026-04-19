@@ -209,6 +209,8 @@ private val HomeCardsPagerHorizontalPeek = 10.dp
 
 /** Мінімальний зазор між сторінками в пейджері (основний рух — нативний scroll пейджера). */
 private val HomeCardsPagerPageSpacing = 0.dp
+/** Дотягування сусідніх сторінок ближче до центральної (візуальні позиції x-1 / x / x+1). */
+private val HomeCardsPagerNeighborPull = 46.dp
 
 /** Між нижнім краєм балансу (чипи) і верхом каруселі. */
 private val HomeSectionGapBalanceToCard = 70.dp
@@ -728,13 +730,15 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     page: Int,
     densityPx: Float
 ): Modifier = this.graphicsLayer {
-    val o = pagerPageOffsetForMotion(pagerState, page)
-    val absO = abs(o).coerceIn(0f, 1f)
+    val oRaw = pagerPageOffsetForMotion(pagerState, page)
+    val o = oRaw.coerceIn(-1f, 1f)
+    val absO = abs(o)
     val compression = absO * absO
     val s = lerp(1f, 0.965f, compression).coerceIn(0.94f, 1f)
     scaleX = s
     scaleY = s
-    translationX = 0f
+    val pullPx = HomeCardsPagerNeighborPull.value * densityPx
+    translationX = o * pullPx
     transformOrigin = TransformOrigin(0.5f, 0.44f)
     rotationY = (o * -1.1f).coerceIn(-2.2f, 2.2f)
     cameraDistance = 14f * densityPx
