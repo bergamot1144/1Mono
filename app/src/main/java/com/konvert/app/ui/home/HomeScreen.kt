@@ -208,16 +208,16 @@ private val HomeCardsLazyHorizontalPadding = 16.dp
  * Горизонтальний inset [HorizontalPager] — тонкі смуги сусідніх карт біля центральної,
  * близько до основної пластини (не «широкий» carousel).
  */
-private val HomeCardsPagerHorizontalPeek = 10.dp
+private val HomeCardsPagerHorizontalPeek = 12.dp
 
 /** Мінімальний зазор між сторінками в пейджері (основний рух — нативний scroll пейджера). */
-private val HomeCardsPagerPageSpacing = 34.dp
+private val HomeCardsPagerPageSpacing = 30.dp
 /** Дотягування сусідніх сторінок ближче до центральної (візуальні позиції x-1 / x / x+1). */
 private val HomeCardsPagerNeighborPull = 46.dp
 /** Фіксована ширина сторінки пейджера, щоб сусідні картки гарантовано були видимі. */
 private val HomeCardsPagerPageWidth = 400.dp
 /** Додаткове зближення тільки пластикових карт між собою (без зближення широких блоків операцій). */
-private val HomeCardsPlateNeighborExtraPull = 28.dp
+private val HomeCardsPlateNeighborExtraPull = 36.dp
 
 /** Між нижнім краєм балансу (чипи) і верхом каруселі. */
 private val HomeSectionGapBalanceToCard = 70.dp
@@ -771,8 +771,10 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     val pullPx = HomeCardsPagerNeighborPull.value * densityPx
     val tension = sin(absO.toDouble() * PI).toFloat()
     val dir = if (abs(o) < 1e-4f) 0f else if (o > 0f) 1f else -1f
-    val snakeOutPullPx = if (page == outgoingPage) swipeDir * (1f - progress) * 22f * densityPx else 0f
-    translationX = (o * pullPx) + (dir * tension * 12f * densityPx) + snakeOutPullPx
+    val snakeOutPullPx = if (page == outgoingPage) swipeDir * (1f - progress) * 30f * densityPx else 0f
+    val snakeIncomingHoldPx =
+        if (isIncoming && swipeDir != 0f) (-swipeDir) * (1f - incomingCatchUp) * 28f * densityPx else 0f
+    translationX = (o * pullPx) + (dir * tension * 12f * densityPx) + snakeOutPullPx + snakeIncomingHoldPx
     transformOrigin = TransformOrigin(0.5f, 0.44f)
     rotationY = (o * -1.1f).coerceIn(-2.2f, 2.2f)
     cameraDistance = 14f * densityPx
