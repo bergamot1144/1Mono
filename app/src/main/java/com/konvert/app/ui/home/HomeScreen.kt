@@ -31,7 +31,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -206,16 +205,12 @@ private val HomeCardsLazyHorizontalPadding = 16.dp
  * Горизонтальний inset [HorizontalPager] — тонкі смуги сусідніх карт біля центральної,
  * близько до основної пластини (не «широкий» carousel).
  */
-private val HomeCardsPagerHorizontalPeek = 18.dp
+private val HomeCardsPagerHorizontalPeek = 10.dp
 
 /** Мінімальний зазор між сторінками в пейджері (основний рух — нативний scroll пейджера). */
-private val HomeCardsPagerPageSpacing = 12.dp
-/** Дотягування сусідніх сторінок ближче до центральної (візуальні позиції x-1 / x / x+1). */
-private val HomeCardsPagerNeighborPull = 64.dp
-/** Фіксована ширина сторінки пейджера, щоб сусідні картки гарантовано були видимі. */
-private val HomeCardsPagerPageWidth = 360.dp
+private val HomeCardsPagerPageSpacing = 0.dp
 /** Додаткове зближення тільки пластикових карт між собою (без зближення широких блоків операцій). */
-private val HomeCardsPlateNeighborExtraPull = 40.dp
+private val HomeCardsPlateNeighborExtraPull = 54.dp
 
 /** Між нижнім краєм балансу (чипи) і верхом каруселі. */
 private val HomeSectionGapBalanceToCard = 70.dp
@@ -753,23 +748,16 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     }
 
     val absO = abs(oClamped)
-    val ease = absO * absO * (3f - 2f * absO)
     val compression = absO * absO
     val s = lerp(1f, 0.965f, compression).coerceIn(0.95f, 1f)
     scaleX = s
     scaleY = s
-    val pullPx = HomeCardsPagerNeighborPull.value * densityPx
-    val separationBoostPx = 22f * densityPx
     val stretchCurve = progress * (2f - progress)
     val outgoingStretchPx =
         if (page == outgoingPage) (-swipeDir) * stretchCurve * 16f * densityPx else 0f
     val incomingHoldPx =
         if (page == incomingPage) (-swipeDir) * (1f - stretchCurve) * 12f * densityPx else 0f
-    translationX =
-        (oClamped * pullPx) -
-            (oClamped * separationBoostPx * ease) +
-            outgoingStretchPx +
-            incomingHoldPx
+    translationX = outgoingStretchPx + incomingHoldPx
     transformOrigin = TransformOrigin(0.5f, 0.44f)
     rotationY = (oClamped * -0.8f).coerceIn(-1.6f, 1.6f)
     cameraDistance = 22f * densityPx
@@ -850,7 +838,6 @@ internal fun HomeCardsTabDashboard(
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxWidth(),
-                        pageSize = PageSize.Fixed(HomeCardsPagerPageWidth),
                         contentPadding = PaddingValues(horizontal = HomeCardsPagerHorizontalPeek),
                         pageSpacing = HomeCardsPagerPageSpacing,
                         verticalAlignment = Alignment.Top,
