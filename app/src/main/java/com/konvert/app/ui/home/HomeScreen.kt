@@ -2,10 +2,8 @@ package com.konvert.app.ui.home
 
 import android.graphics.BitmapFactory
 import android.graphics.Typeface
-import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.floor
-import kotlin.math.sin
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
@@ -211,13 +209,13 @@ private val HomeCardsLazyHorizontalPadding = 16.dp
 private val HomeCardsPagerHorizontalPeek = 12.dp
 
 /** Мінімальний зазор між сторінками в пейджері (основний рух — нативний scroll пейджера). */
-private val HomeCardsPagerPageSpacing = 30.dp
+private val HomeCardsPagerPageSpacing = 36.dp
 /** Дотягування сусідніх сторінок ближче до центральної (візуальні позиції x-1 / x / x+1). */
-private val HomeCardsPagerNeighborPull = 46.dp
+private val HomeCardsPagerNeighborPull = 24.dp
 /** Фіксована ширина сторінки пейджера, щоб сусідні картки гарантовано були видимі. */
 private val HomeCardsPagerPageWidth = 400.dp
 /** Додаткове зближення тільки пластикових карт між собою (без зближення широких блоків операцій). */
-private val HomeCardsPlateNeighborExtraPull = 36.dp
+private val HomeCardsPlateNeighborExtraPull = 16.dp
 
 /** Між нижнім краєм балансу (чипи) і верхом каруселі. */
 private val HomeSectionGapBalanceToCard = 70.dp
@@ -739,48 +737,17 @@ private fun Modifier.homeCardsUnifiedPageMotion(
 ): Modifier = this.graphicsLayer {
     val oRaw = pagerPageOffsetForMotion(pagerState, page)
     val oClamped = oRaw.coerceIn(-1f, 1f)
-    val pageOffset = pagerState.currentPageOffsetFraction
-    val swipeDir = when {
-        pageOffset < -1e-4f -> -1f
-        pageOffset > 1e-4f -> 1f
-        else -> 0f
-    }
-    val progress = abs(pageOffset).coerceIn(0f, 1f)
-    val anchorPage = pagerState.settledPage
-    val incomingPage = when {
-        swipeDir < 0f -> anchorPage + 1
-        swipeDir > 0f -> anchorPage - 1
-        else -> Int.MIN_VALUE
-    }
-    val outgoingPage = if (swipeDir != 0f) anchorPage else Int.MIN_VALUE
-    val isIncoming = page == incomingPage
-
-    val oCenteredWhenIdle =
-        if (!pagerState.isScrollInProgress && page == pagerState.currentPage) 0f else oClamped
-    val outgoingPhaseRaw = (progress / 0.45f).coerceIn(0f, 1f)
-    val outgoingPushToSide = outgoingPhaseRaw * outgoingPhaseRaw * (3f - 2f * outgoingPhaseRaw)
-    val incomingPhaseRaw = ((progress - 0.72f) / 0.28f).coerceIn(0f, 1f)
-    val incomingCatchUp = incomingPhaseRaw * incomingPhaseRaw * (3f - 2f * incomingPhaseRaw)
-    val o = when {
-        page == outgoingPage && swipeDir != 0f -> lerp(oCenteredWhenIdle, -swipeDir, outgoingPushToSide)
-        isIncoming && swipeDir != 0f -> lerp(swipeDir, oCenteredWhenIdle, incomingCatchUp)
-        else -> oCenteredWhenIdle
-    }
-    val absO = abs(o)
-
+    val absO = abs(oClamped)
+    val ease = absO * absO * (3f - 2f * absO)
     val compression = absO * absO
-    val s = lerp(1f, 0.965f, compression).coerceIn(0.94f, 1f)
+    val s = lerp(1f, 0.965f, compression).coerceIn(0.95f, 1f)
     scaleX = s
     scaleY = s
     val pullPx = HomeCardsPagerNeighborPull.value * densityPx
-    val tension = sin(absO.toDouble() * PI).toFloat()
-    val dir = if (abs(o) < 1e-4f) 0f else if (o > 0f) 1f else -1f
-    val snakeOutPullPx = if (page == outgoingPage) (-swipeDir) * (1f - progress) * 8f * densityPx else 0f
-    val snakeIncomingHoldPx =
-        if (isIncoming && swipeDir != 0f) (-swipeDir) * (1f - incomingCatchUp) * 20f * densityPx else 0f
-    translationX = (o * pullPx) + (dir * tension * 12f * densityPx) + snakeOutPullPx + snakeIncomingHoldPx
+    val separationBoostPx = 22f * densityPx
+    translationX = (oClamped * pullPx) - (oClamped * separationBoostPx * ease)
     transformOrigin = TransformOrigin(0.5f, 0.44f)
-    rotationY = (o * -1.1f).coerceIn(-2.2f, 2.2f)
+    rotationY = (oClamped * -1.0f).coerceIn(-2f, 2f)
     cameraDistance = 14f * densityPx
     alpha = 1f
 }
