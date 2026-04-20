@@ -738,6 +738,20 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     val oRaw = pagerPageOffsetForMotion(pagerState, page)
     val o = oRaw.coerceIn(-1f, 1f)
     val absO = abs(o)
+    val pageOffset = pagerState.currentPageOffsetFraction
+    val swipeDir = when {
+        pageOffset < -1e-4f -> -1f
+        pageOffset > 1e-4f -> 1f
+        else -> 0f
+    }
+    val progress = abs(pageOffset).coerceIn(0f, 1f)
+    val incomingPage = when {
+        swipeDir < 0f -> pagerState.currentPage + 1
+        swipeDir > 0f -> pagerState.currentPage - 1
+        else -> Int.MIN_VALUE
+    }
+    val outgoingPage = if (swipeDir != 0f) pagerState.currentPage else Int.MIN_VALUE
+
     val compression = absO * absO
     val s = lerp(1f, 0.965f, compression).coerceIn(0.94f, 1f)
     scaleX = s
@@ -745,7 +759,11 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     val pullPx = HomeCardsPagerNeighborPull.value * densityPx
     val tension = sin(absO.toDouble() * PI).toFloat()
     val dir = if (abs(o) < 1e-4f) 0f else if (o > 0f) 1f else -1f
-    translationX = (o * pullPx) + (dir * tension * 12f * densityPx)
+    val snakeOutPullPx = if (page == outgoingPage) swipeDir * (1f - progress) * 16f * densityPx else 0f
+    val lagStart = ((progress - 0.58f) / 0.42f).coerceIn(0f, 1f)
+    val snakeIncomingLagPx =
+        if (page == incomingPage) (-swipeDir) * (1f - lagStart) * 22f * densityPx else 0f
+    translationX = (o * pullPx) + (dir * tension * 12f * densityPx) + snakeOutPullPx + snakeIncomingLagPx
     transformOrigin = TransformOrigin(0.5f, 0.44f)
     rotationY = (o * -1.1f).coerceIn(-2.2f, 2.2f)
     cameraDistance = 14f * densityPx
