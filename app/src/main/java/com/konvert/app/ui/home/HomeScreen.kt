@@ -211,11 +211,13 @@ private val HomeCardsLazyHorizontalPadding = 16.dp
 private val HomeCardsPagerHorizontalPeek = 10.dp
 
 /** Мінімальний зазор між сторінками в пейджері (основний рух — нативний scroll пейджера). */
-private val HomeCardsPagerPageSpacing = 18.dp
+private val HomeCardsPagerPageSpacing = 34.dp
 /** Дотягування сусідніх сторінок ближче до центральної (візуальні позиції x-1 / x / x+1). */
 private val HomeCardsPagerNeighborPull = 46.dp
 /** Фіксована ширина сторінки пейджера, щоб сусідні картки гарантовано були видимі. */
 private val HomeCardsPagerPageWidth = 400.dp
+/** Додаткове зближення тільки пластикових карт між собою (без зближення широких блоків операцій). */
+private val HomeCardsPlateNeighborExtraPull = 28.dp
 
 /** Між нижнім краєм балансу (чипи) і верхом каруселі. */
 private val HomeSectionGapBalanceToCard = 70.dp
@@ -884,10 +886,15 @@ internal fun HomeCardsTabDashboard(
                                         .height(HomeCardCarouselLayoutReserveHeight),
                                     contentAlignment = Alignment.TopCenter
                                 ) {
+                                    val pageOffset = pagerPageOffsetForMotion(pagerState, page).coerceIn(-1f, 1f)
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(HomeCardCarouselPagerVisualHeight)
+                                            .graphicsLayer {
+                                                translationX =
+                                                    pageOffset * HomeCardsPlateNeighborExtraPull.value * motionDensity
+                                            }
                                     ) {
                                         HomeCardPlaceholder(kind = kind, onCardClick = onOpenCardDetail)
                                     }
