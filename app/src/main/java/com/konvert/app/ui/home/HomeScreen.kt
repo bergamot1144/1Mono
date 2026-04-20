@@ -754,9 +754,9 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     scaleY = s
     val stretchCurve = progress * (2f - progress)
     val outgoingStretchPx =
-        if (page == outgoingPage) (-swipeDir) * stretchCurve * 16f * densityPx else 0f
+        if (page == outgoingPage) (-swipeDir) * stretchCurve * 24f * densityPx else 0f
     val incomingHoldPx =
-        if (page == incomingPage) (-swipeDir) * (1f - stretchCurve) * 12f * densityPx else 0f
+        if (page == incomingPage) (-swipeDir) * (1f - stretchCurve) * 18f * densityPx else 0f
     translationX = outgoingStretchPx + incomingHoldPx
     transformOrigin = TransformOrigin(0.5f, 0.44f)
     rotationY = (oClamped * -0.8f).coerceIn(-1.6f, 1.6f)
