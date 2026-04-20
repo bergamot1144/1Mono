@@ -206,16 +206,16 @@ private val HomeCardsLazyHorizontalPadding = 16.dp
  * Горизонтальний inset [HorizontalPager] — тонкі смуги сусідніх карт біля центральної,
  * близько до основної пластини (не «широкий» carousel).
  */
-private val HomeCardsPagerHorizontalPeek = 12.dp
+private val HomeCardsPagerHorizontalPeek = 14.dp
 
 /** Мінімальний зазор між сторінками в пейджері (основний рух — нативний scroll пейджера). */
-private val HomeCardsPagerPageSpacing = 36.dp
+private val HomeCardsPagerPageSpacing = 18.dp
 /** Дотягування сусідніх сторінок ближче до центральної (візуальні позиції x-1 / x / x+1). */
-private val HomeCardsPagerNeighborPull = 24.dp
+private val HomeCardsPagerNeighborPull = 52.dp
 /** Фіксована ширина сторінки пейджера, щоб сусідні картки гарантовано були видимі. */
 private val HomeCardsPagerPageWidth = 400.dp
 /** Додаткове зближення тільки пластикових карт між собою (без зближення широких блоків операцій). */
-private val HomeCardsPlateNeighborExtraPull = 16.dp
+private val HomeCardsPlateNeighborExtraPull = 34.dp
 
 /** Між нижнім краєм балансу (чипи) і верхом каруселі. */
 private val HomeSectionGapBalanceToCard = 70.dp
@@ -747,8 +747,8 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     val separationBoostPx = 22f * densityPx
     translationX = (oClamped * pullPx) - (oClamped * separationBoostPx * ease)
     transformOrigin = TransformOrigin(0.5f, 0.44f)
-    rotationY = (oClamped * -1.0f).coerceIn(-2f, 2f)
-    cameraDistance = 14f * densityPx
+    rotationY = (oClamped * -0.8f).coerceIn(-1.6f, 1.6f)
+    cameraDistance = 22f * densityPx
     alpha = 1f
 }
 
