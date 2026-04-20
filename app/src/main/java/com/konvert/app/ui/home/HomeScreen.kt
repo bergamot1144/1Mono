@@ -757,10 +757,11 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     val oCenteredWhenIdle =
         if (!pagerState.isScrollInProgress && page == pagerState.currentPage) 0f else oClamped
     val incomingCatchUp = ((progress - 0.96f) / 0.04f).coerceIn(0f, 1f)
-    val o = if (isIncoming && swipeDir != 0f) {
-        lerp(swipeDir, oCenteredWhenIdle, incomingCatchUp)
-    } else {
-        oCenteredWhenIdle
+    val outgoingPushToSide = (progress / 0.35f).coerceIn(0f, 1f)
+    val o = when {
+        page == outgoingPage && swipeDir != 0f -> lerp(oCenteredWhenIdle, -swipeDir, outgoingPushToSide)
+        isIncoming && swipeDir != 0f -> lerp(swipeDir, oCenteredWhenIdle, incomingCatchUp)
+        else -> oCenteredWhenIdle
     }
     val absO = abs(o)
 
@@ -771,7 +772,7 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     val pullPx = HomeCardsPagerNeighborPull.value * densityPx
     val tension = sin(absO.toDouble() * PI).toFloat()
     val dir = if (abs(o) < 1e-4f) 0f else if (o > 0f) 1f else -1f
-    val snakeOutPullPx = if (page == outgoingPage) swipeDir * (1f - progress) * 30f * densityPx else 0f
+    val snakeOutPullPx = if (page == outgoingPage) (-swipeDir) * (1f - progress) * 10f * densityPx else 0f
     val snakeIncomingHoldPx =
         if (isIncoming && swipeDir != 0f) (-swipeDir) * (1f - incomingCatchUp) * 28f * densityPx else 0f
     translationX = (o * pullPx) + (dir * tension * 12f * densityPx) + snakeOutPullPx + snakeIncomingHoldPx
