@@ -206,16 +206,16 @@ private val HomeCardsLazyHorizontalPadding = 16.dp
  * Горизонтальний inset [HorizontalPager] — тонкі смуги сусідніх карт біля центральної,
  * близько до основної пластини (не «широкий» carousel).
  */
-private val HomeCardsPagerHorizontalPeek = 14.dp
+private val HomeCardsPagerHorizontalPeek = 18.dp
 
 /** Мінімальний зазор між сторінками в пейджері (основний рух — нативний scroll пейджера). */
-private val HomeCardsPagerPageSpacing = 18.dp
+private val HomeCardsPagerPageSpacing = 12.dp
 /** Дотягування сусідніх сторінок ближче до центральної (візуальні позиції x-1 / x / x+1). */
-private val HomeCardsPagerNeighborPull = 52.dp
+private val HomeCardsPagerNeighborPull = 64.dp
 /** Фіксована ширина сторінки пейджера, щоб сусідні картки гарантовано були видимі. */
-private val HomeCardsPagerPageWidth = 400.dp
+private val HomeCardsPagerPageWidth = 360.dp
 /** Додаткове зближення тільки пластикових карт між собою (без зближення широких блоків операцій). */
-private val HomeCardsPlateNeighborExtraPull = 34.dp
+private val HomeCardsPlateNeighborExtraPull = 40.dp
 
 /** Між нижнім краєм балансу (чипи) і верхом каруселі. */
 private val HomeSectionGapBalanceToCard = 70.dp
@@ -737,6 +737,21 @@ private fun Modifier.homeCardsUnifiedPageMotion(
 ): Modifier = this.graphicsLayer {
     val oRaw = pagerPageOffsetForMotion(pagerState, page)
     val oClamped = oRaw.coerceIn(-1f, 1f)
+    val pageOffset = pagerState.currentPageOffsetFraction
+    val swipeDir = when {
+        pageOffset < -1e-4f -> -1f
+        pageOffset > 1e-4f -> 1f
+        else -> 0f
+    }
+    val progress = abs(pageOffset).coerceIn(0f, 1f)
+    val anchorPage = pagerState.settledPage
+    val outgoingPage = if (swipeDir != 0f) anchorPage else Int.MIN_VALUE
+    val incomingPage = when {
+        swipeDir < 0f -> anchorPage + 1
+        swipeDir > 0f -> anchorPage - 1
+        else -> Int.MIN_VALUE
+    }
+
     val absO = abs(oClamped)
     val ease = absO * absO * (3f - 2f * absO)
     val compression = absO * absO
@@ -745,7 +760,16 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     scaleY = s
     val pullPx = HomeCardsPagerNeighborPull.value * densityPx
     val separationBoostPx = 22f * densityPx
-    translationX = (oClamped * pullPx) - (oClamped * separationBoostPx * ease)
+    val stretchCurve = progress * (2f - progress)
+    val outgoingStretchPx =
+        if (page == outgoingPage) (-swipeDir) * stretchCurve * 16f * densityPx else 0f
+    val incomingHoldPx =
+        if (page == incomingPage) (-swipeDir) * (1f - stretchCurve) * 12f * densityPx else 0f
+    translationX =
+        (oClamped * pullPx) -
+            (oClamped * separationBoostPx * ease) +
+            outgoingStretchPx +
+            incomingHoldPx
     transformOrigin = TransformOrigin(0.5f, 0.44f)
     rotationY = (oClamped * -0.8f).coerceIn(-1.6f, 1.6f)
     cameraDistance = 22f * densityPx
@@ -887,13 +911,7 @@ internal fun HomeCardsTabDashboard(
                                     Spacer(modifier = Modifier.height(HomeSectionGapAllCardsToQuick))
                                     HomeQuickActions()
                                     Spacer(modifier = Modifier.height(HomeSectionGapQuickToOperations))
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 10.dp)
-                                    ) {
-                                        HomeOperationsCard()
-                                    }
+                                    HomeOperationsCard()
                                 }
                             }
                         }
