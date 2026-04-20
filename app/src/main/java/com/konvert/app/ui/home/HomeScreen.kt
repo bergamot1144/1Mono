@@ -746,12 +746,13 @@ private fun Modifier.homeCardsUnifiedPageMotion(
         else -> 0f
     }
     val progress = abs(pageOffset).coerceIn(0f, 1f)
+    val anchorPage = pagerState.settledPage
     val incomingPage = when {
-        swipeDir < 0f -> pagerState.currentPage + 1
-        swipeDir > 0f -> pagerState.currentPage - 1
+        swipeDir < 0f -> anchorPage + 1
+        swipeDir > 0f -> anchorPage - 1
         else -> Int.MIN_VALUE
     }
-    val outgoingPage = if (swipeDir != 0f) pagerState.currentPage else Int.MIN_VALUE
+    val outgoingPage = if (swipeDir != 0f) anchorPage else Int.MIN_VALUE
     val isIncoming = page == incomingPage
 
     val oCenteredWhenIdle =
