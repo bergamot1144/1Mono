@@ -2,8 +2,10 @@ package com.konvert.app.ui.home
 
 import android.graphics.BitmapFactory
 import android.graphics.Typeface
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.sin
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
@@ -31,6 +33,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -211,6 +214,8 @@ private val HomeCardsPagerHorizontalPeek = 10.dp
 private val HomeCardsPagerPageSpacing = 0.dp
 /** Дотягування сусідніх сторінок ближче до центральної (візуальні позиції x-1 / x / x+1). */
 private val HomeCardsPagerNeighborPull = 46.dp
+/** Фіксована ширина сторінки пейджера, щоб сусідні картки гарантовано були видимі. */
+private val HomeCardsPagerPageWidth = 320.dp
 
 /** Між нижнім краєм балансу (чипи) і верхом каруселі. */
 private val HomeSectionGapBalanceToCard = 70.dp
@@ -738,7 +743,9 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     scaleX = s
     scaleY = s
     val pullPx = HomeCardsPagerNeighborPull.value * densityPx
-    translationX = o * pullPx
+    val tension = sin(absO.toDouble() * PI).toFloat()
+    val dir = if (abs(o) < 1e-4f) 0f else if (o > 0f) 1f else -1f
+    translationX = (o * pullPx) + (dir * tension * 12f * densityPx)
     transformOrigin = TransformOrigin(0.5f, 0.44f)
     rotationY = (o * -1.1f).coerceIn(-2.2f, 2.2f)
     cameraDistance = 14f * densityPx
@@ -839,6 +846,7 @@ internal fun HomeCardsTabDashboard(
                             HorizontalPager(
                                 state = pagerState,
                                 modifier = Modifier.fillMaxWidth(),
+                                pageSize = PageSize.Fixed(HomeCardsPagerPageWidth),
                                 contentPadding = PaddingValues(horizontal = HomeCardsPagerHorizontalPeek),
                                 pageSpacing = HomeCardsPagerPageSpacing,
                                 verticalAlignment = Alignment.Top,
