@@ -215,7 +215,7 @@ private val HomeCardsPagerPageSpacing = 0.dp
 /** Дотягування сусідніх сторінок ближче до центральної (візуальні позиції x-1 / x / x+1). */
 private val HomeCardsPagerNeighborPull = 46.dp
 /** Фіксована ширина сторінки пейджера, щоб сусідні картки гарантовано були видимі. */
-private val HomeCardsPagerPageWidth = 320.dp
+private val HomeCardsPagerPageWidth = 400.dp
 
 /** Між нижнім краєм балансу (чипи) і верхом каруселі. */
 private val HomeSectionGapBalanceToCard = 70.dp
@@ -736,8 +736,7 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     densityPx: Float
 ): Modifier = this.graphicsLayer {
     val oRaw = pagerPageOffsetForMotion(pagerState, page)
-    val o = oRaw.coerceIn(-1f, 1f)
-    val absO = abs(o)
+    val oClamped = oRaw.coerceIn(-1f, 1f)
     val pageOffset = pagerState.currentPageOffsetFraction
     val swipeDir = when {
         pageOffset < -1e-4f -> -1f
@@ -751,6 +750,17 @@ private fun Modifier.homeCardsUnifiedPageMotion(
         else -> Int.MIN_VALUE
     }
     val outgoingPage = if (swipeDir != 0f) pagerState.currentPage else Int.MIN_VALUE
+    val isIncoming = page == incomingPage
+
+    val oCenteredWhenIdle =
+        if (!pagerState.isScrollInProgress && page == pagerState.currentPage) 0f else oClamped
+    val incomingCatchUp = ((progress - 0.84f) / 0.16f).coerceIn(0f, 1f)
+    val o = if (isIncoming && swipeDir != 0f) {
+        lerp(swipeDir, oCenteredWhenIdle, incomingCatchUp)
+    } else {
+        oCenteredWhenIdle
+    }
+    val absO = abs(o)
 
     val compression = absO * absO
     val s = lerp(1f, 0.965f, compression).coerceIn(0.94f, 1f)
@@ -760,10 +770,7 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     val tension = sin(absO.toDouble() * PI).toFloat()
     val dir = if (abs(o) < 1e-4f) 0f else if (o > 0f) 1f else -1f
     val snakeOutPullPx = if (page == outgoingPage) swipeDir * (1f - progress) * 16f * densityPx else 0f
-    val lagStart = ((progress - 0.58f) / 0.42f).coerceIn(0f, 1f)
-    val snakeIncomingLagPx =
-        if (page == incomingPage) (-swipeDir) * (1f - lagStart) * 22f * densityPx else 0f
-    translationX = (o * pullPx) + (dir * tension * 12f * densityPx) + snakeOutPullPx + snakeIncomingLagPx
+    translationX = (o * pullPx) + (dir * tension * 12f * densityPx) + snakeOutPullPx
     transformOrigin = TransformOrigin(0.5f, 0.44f)
     rotationY = (o * -1.1f).coerceIn(-2.2f, 2.2f)
     cameraDistance = 14f * densityPx
