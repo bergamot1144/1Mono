@@ -732,14 +732,15 @@ private fun Modifier.homeCardsUnifiedPageMotion(
 ): Modifier = this.graphicsLayer {
     val oRaw = pagerPageOffsetForMotion(pagerState, page)
     val oClamped = oRaw.coerceIn(-1f, 1f)
-    val pageOffset = pagerState.currentPageOffsetFraction
+    val anchorPage = pagerState.settledPage
+    val scrollPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
+    val dragFromAnchor = scrollPosition - anchorPage
     val swipeDir = when {
-        pageOffset < -1e-4f -> -1f
-        pageOffset > 1e-4f -> 1f
+        dragFromAnchor < -1e-4f -> -1f
+        dragFromAnchor > 1e-4f -> 1f
         else -> 0f
     }
-    val progress = abs(pageOffset).coerceIn(0f, 1f)
-    val anchorPage = pagerState.settledPage
+    val progress = abs(dragFromAnchor).coerceIn(0f, 1f)
     val outgoingPage = if (swipeDir != 0f) anchorPage else Int.MIN_VALUE
     val incomingPage = when {
         swipeDir < 0f -> anchorPage + 1
@@ -752,16 +753,26 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     val s = lerp(1f, 0.965f, compression).coerceIn(0.95f, 1f)
     scaleX = s
     scaleY = s
-    val halfProgress = if (progress <= 0.5f) {
-        (progress * 2f).coerceIn(0f, 1f)
-    } else {
-        ((1f - progress) * 2f).coerceIn(0f, 1f)
+    // Двофазний профіль: до 50% сторінки елементи розходяться, після 50% — плавно сходяться.
+    val smoothStep: (Float) -> Float = { t ->
+        val x = t.coerceIn(0f, 1f)
+        x * x * (3f - 2f * x)
     }
-    val stretchCurve = halfProgress * halfProgress * (3f - 2f * halfProgress)
+    val stretchOutThenIn = if (progress <= 0.5f) {
+        smoothStep(progress / 0.5f)
+    } else {
+        smoothStep((1f - progress) / 0.5f)
+    }
+    // Невеликий "хвіст" в кінці жесту: щоб зближення завершувалось без різкого стопу біля snap.
+    val settleTail = 1f - smoothStep(progress)
     val outgoingStretchPx =
-        if (page == outgoingPage) (-swipeDir) * stretchCurve * 100f * densityPx else 0f
+        if (page == outgoingPage) (-swipeDir) * stretchOutThenIn * 100f * densityPx else 0f
     val incomingHoldPx =
-        if (page == incomingPage) (-swipeDir) * stretchCurve * 25f * densityPx else 0f
+        if (page == incomingPage) {
+            (-swipeDir) * (0.72f * stretchOutThenIn + 0.28f * settleTail) * 30f * densityPx
+        } else {
+            0f
+        }
     translationX = outgoingStretchPx + incomingHoldPx
     transformOrigin = TransformOrigin(0.5f, 0.44f)
     rotationY = (oClamped * -0.8f).coerceIn(-1.6f, 1.6f)
