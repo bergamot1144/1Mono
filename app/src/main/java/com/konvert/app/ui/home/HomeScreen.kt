@@ -152,6 +152,7 @@ import com.airbnb.lottie.compose.LottieClipSpec
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.rememberLottieAnimatable
 import com.airbnb.lottie.compose.rememberLottieComposition
+import kotlin.math.pow
 
 private val CardShape = RoundedCornerShape(24.dp)
 private val ChipShape = RoundedCornerShape(20.dp)
@@ -205,7 +206,7 @@ private val HomeCardsLazyHorizontalPadding = 16.dp
  * Горизонтальний inset [HorizontalPager] — тонкі смуги сусідніх карт біля центральної,
  * близько до основної пластини (не «широкий» carousel).
  */
-private val HomeCardsPagerHorizontalPeek = 10.dp
+private val HomeCardsPagerHorizontalPeek = 8.dp
 
 /** Мінімальний зазор між сторінками в пейджері (основний рух — нативний scroll пейджера). */
 private val HomeCardsPagerPageSpacing = 0.dp
@@ -406,9 +407,9 @@ private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
         1.00f to Color(0xFF0C0C0C)
     ),
     arrayOf(
-        0.00f to Color(0xFF281040),
-        0.14f to Color(0xFF3A2062),
-        0.30f to Color(0xFF4A2C78),
+        0.00f to Color(0xFF261132),
+        0.14f to Color(0xFF2A1B4F),
+        0.30f to Color(0xFF2D2765),
         0.48f to Color(0xFF321C52),
         0.66f to Color(0xFF1A102E),
         0.82f to Color(0xFF141020),
@@ -416,18 +417,18 @@ private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
-        0.00f to Color(0xFF032E38),
-        0.16f to Color(0xFF084A5A),
-        0.32f to Color(0xFF0D5E6E),
+        0.00f to Color(0xFF022028),
+        0.16f to Color(0xFF04303C),
+        0.32f to Color(0xFF053446),
         0.48f to Color(0xFF063E48),
         0.68f to Color(0xFF021C24),
         0.82f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
-        0.00f to Color(0xFF38101C),
-        0.16f to Color(0xFF521828),
-        0.32f to Color(0xFF682038),
+        0.00f to Color(0xFF1D042C),
+        0.16f to Color(0xFF3B1148),
+        0.32f to Color(0xFF51195A),
         0.48f to Color(0xFF401424),
         0.68f to Color(0xFF180810),
         0.82f to Color(0xFF121212),
@@ -471,22 +472,22 @@ private val HomeBgContentScrollPalettes: List<Array<Pair<Float, Color>>> = listO
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
-        0.00f to Color(0xFF281040),
-        0.35f to Color(0xFF3A2060),
+        0.00f to Color(0xFF261132),
+        0.35f to Color(0xFF2D2765),
         0.45f to Color(0xFF1A1028),
         0.55f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
-        0.00f to Color(0xFF042830),
-        0.35f to Color(0xFF0E4A58),
+        0.00f to Color(0xFF022028),
+        0.35f to Color(0xFF053446),
         0.45f to Color(0xFF061C22),
         0.55f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
-        0.00f to Color(0xFF321018),
-        0.35f to Color(0xFF4A1830),
+        0.00f to Color(0xFF1D042C),
+        0.35f to Color(0xFF51195A),
         0.45f to Color(0xFF200C14),
         0.55f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
@@ -719,6 +720,31 @@ internal const val HomeCardsCarouselPageCount = 4
 private fun pagerPageOffsetForMotion(pagerState: PagerState, page: Int): Float =
     (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
 
+@OptIn(ExperimentalFoundationApi::class)
+private fun firstToSecondIncomingHoldFactor(pagerState: PagerState, page: Int): Float {
+    val anchorPage = pagerState.settledPage
+    val scrollPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
+    val dragFromAnchor = scrollPosition - anchorPage
+    if (anchorPage != 0 || dragFromAnchor >= -1e-4f || page != 1) return 1f
+
+    val smoothStep: (Float) -> Float = { t ->
+        val x = t.coerceIn(0f, 1f)
+        x * x * (3f - 2f * x)
+    }
+    val progress = abs(dragFromAnchor).coerceIn(0f, 1f)
+    return if (progress <= 0.5f) {
+        val tHalf = (progress / 0.5f).coerceIn(0f, 1f)
+        // На першій половині свайпу вхідна (друга) сторінка майже не виїжджає:
+        // на 50% шляху лишається ~20% її додаткового руху.
+        0.02f + 0.08f * smoothStep(tHalf)
+    } else {
+        val tSecondHalf = ((progress - 0.5f) / 0.5f).coerceIn(0f, 1f)
+        // Після середини наздоганяє плавно, але помітно активніше.
+        val catchUp = smoothStep(tSecondHalf.pow(0.75f))
+        0.20f + 0.80f * catchUp
+    }
+}
+
 /**
  * Легка пластика для сторінки картки в пейджері:
  * у центрі (offset=0) — без трансформації, на сусідніх позиціях (±1) — м'яке стискання й нахил.
@@ -764,12 +790,19 @@ private fun Modifier.homeCardsUnifiedPageMotion(
         smoothStep((1f - progress) / 0.5f)
     }
     // Невеликий "хвіст" в кінці жесту: щоб зближення завершувалось без різкого стопу біля snap.
-    val settleTail = 1f - smoothStep(progress)
+    val settleTail = (1f - smoothStep(progress)).pow(0.75f)
+    // Довше утримує вхідну сторінку саме на старті руху.
+    val earlyHold = 1f - smoothStep((progress / 0.42f).coerceIn(0f, 1f))
+    val firstToSecondHold = firstToSecondIncomingHoldFactor(pagerState, page)
     val outgoingStretchPx =
-        if (page == outgoingPage) (-swipeDir) * stretchOutThenIn * 100f * densityPx else 0f
+        if (page == outgoingPage) (-swipeDir) * stretchOutThenIn * 110f * densityPx else 0f
     val incomingHoldPx =
         if (page == incomingPage) {
-            (-swipeDir) * (0.72f * stretchOutThenIn + 0.28f * settleTail) * 30f * densityPx
+            (-swipeDir) *
+                (0.25f * stretchOutThenIn + 0.34f * settleTail + 0.1f * earlyHold) *
+                80f *
+                firstToSecondHold *
+                densityPx
         } else {
             0f
         }
@@ -892,8 +925,13 @@ internal fun HomeCardsTabDashboard(
                                             .fillMaxWidth()
                                             .height(HomeCardCarouselPagerVisualHeight)
                                             .graphicsLayer {
+                                                val firstToSecondHold =
+                                                    firstToSecondIncomingHoldFactor(pagerState, page)
                                                 translationX =
-                                                    pageOffset * HomeCardsPlateNeighborExtraPull.value * motionDensity
+                                                    pageOffset *
+                                                        HomeCardsPlateNeighborExtraPull.value *
+                                                        motionDensity *
+                                                        firstToSecondHold
                                             }
                                     ) {
                                         HomeCardPlaceholder(kind = kind, onCardClick = onOpenCardDetail)
