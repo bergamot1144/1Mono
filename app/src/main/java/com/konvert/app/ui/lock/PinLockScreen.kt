@@ -1,10 +1,13 @@
 package com.konvert.app.ui.lock
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,9 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -42,6 +43,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -55,6 +58,8 @@ import com.konvert.app.ui.theme.PinBackspaceCircleFill
 import com.konvert.app.ui.theme.PinBackspaceCirclePressed
 import com.konvert.app.ui.theme.PinDotEmpty
 import com.konvert.app.ui.theme.PinDotFilled
+import com.konvert.app.ui.theme.PinKeypadButton
+import com.konvert.app.ui.theme.PinKeypadButtonPressed
 import com.konvert.app.ui.theme.PinPromptText
 import com.konvert.app.ui.theme.TextMuted
 import com.konvert.app.ui.theme.TextPrimary
@@ -69,6 +74,7 @@ private const val PinFaceIdNegateAssetUnderscore = "face_id_negate.png"
 private const val PinOperationsLogosPath = "operations_logos"
 private const val PinFaceIdNegateInOperationsLogos = "$PinOperationsLogosPath/face-id_negate.png"
 private const val PinFaceIdNegateInOperationsLogosUnderscore = "$PinOperationsLogosPath/face_id_negate.png"
+private const val PinBackspaceAsset = "$PinOperationsLogosPath/backspace.png"
 
 @Composable
 private fun rememberFaceIdNegateBitmap(): ImageBitmap? {
@@ -88,6 +94,28 @@ private fun rememberFaceIdNegateBitmap(): ImageBitmap? {
             }.getOrNull()
         }
     }
+}
+
+@Composable
+private fun rememberBackspaceBitmap(): ImageBitmap? {
+    val context = LocalContext.current
+    return remember {
+        runCatching {
+            context.assets.open(PinBackspaceAsset).use { input ->
+                BitmapFactory.decodeStream(input)
+                    ?.cropBackspaceIcon()
+                    ?.asImageBitmap()
+            }
+        }.getOrNull()
+    }
+}
+
+private fun Bitmap.cropBackspaceIcon(): Bitmap {
+    val left = (width * 0.31f).toInt().coerceIn(0, width - 1)
+    val top = (height * 0.34f).toInt().coerceIn(0, height - 1)
+    val right = (width * 0.64f).toInt().coerceIn(left + 1, width)
+    val bottom = (height * 0.61f).toInt().coerceIn(top + 1, height)
+    return Bitmap.createBitmap(this, left, top, right - left, bottom - top)
 }
 
 @Composable
@@ -116,7 +144,7 @@ fun PinLockScreen(onUnlocked: () -> Unit) {
             .fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.weight(0.85f))
         Box(
             modifier = Modifier
                 .size(88.dp)
@@ -152,7 +180,7 @@ fun PinLockScreen(onUnlocked: () -> Unit) {
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(28.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(34.dp)) {
             repeat(4) { index ->
                 val filled = index < pin.length
                 val color = when {
@@ -162,13 +190,13 @@ fun PinLockScreen(onUnlocked: () -> Unit) {
                 }
                 Box(
                     modifier = Modifier
-                        .size(14.dp)
+                        .size(16.dp)
                         .clip(CircleShape)
                         .background(color)
                 )
             }
         }
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.weight(1.15f))
         Keypad(
             onDigit = { d ->
                 if (pin.length < 4 && !showError) pin += d
@@ -178,19 +206,26 @@ fun PinLockScreen(onUnlocked: () -> Unit) {
             },
             onBiometricStub = { /* прототип */ }
         )
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(18.dp))
         Text(
             text = stringResource(R.string.pin_forgot),
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = 18.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Normal
+            ),
             color = TextPrimary,
             modifier = Modifier
                 .fillMaxWidth()
+                .graphicsLayer {
+                    scaleY = 1.14f
+                }
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) { /* прототип */ }
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(64.dp))
     }
 }
 
@@ -201,7 +236,9 @@ private fun Keypad(
     onBiometricStub: () -> Unit
 ) {
     val faceIdBitmap = rememberFaceIdNegateBitmap()
+    val backspaceBitmap = rememberBackspaceBitmap()
     val biometricCd = stringResource(R.string.pin_biometric_content_description)
+    val backspaceCd = stringResource(R.string.pin_backspace_content_description)
     val rows = listOf(
         listOf("1", "2", "3"),
         listOf("4", "5", "6"),
@@ -231,12 +268,21 @@ private fun Keypad(
                             baseColor = PinBackspaceCircleFill,
                             pressedColor = PinBackspaceCirclePressed
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.Backspace,
-                                contentDescription = stringResource(R.string.pin_backspace_content_description),
-                                tint = TextPrimary,
-                                modifier = Modifier.size(28.dp)
-                            )
+                            if (backspaceBitmap != null) {
+                                Image(
+                                    bitmap = backspaceBitmap,
+                                    contentDescription = backspaceCd,
+                                    modifier = Modifier.size(width = 50.dp, height = 32.dp),
+                                    contentScale = ContentScale.Fit
+                                )
+                            } else {
+                                Text(
+                                    text = "⌫",
+                                    color = TextPrimary,
+                                    fontSize = 24.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                         else -> KeypadCircle(onClick = { onDigit(cell[0]) }) {
                             Text(
@@ -287,13 +333,15 @@ private fun KeypadCircleColored(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val background = if (pressed) pressedColor else baseColor
+    val hovered by interaction.collectIsHoveredAsState()
+    val background = if (pressed || hovered) pressedColor else baseColor
     Box(
         modifier = Modifier
             .size(width = 88.dp, height = 88.dp)
             .aspectRatio(1f)
             .clip(CircleShape)
             .background(background)
+            .hoverable(interaction)
             .clickable(
                 interactionSource = interaction,
                 indication = null,
@@ -312,14 +360,16 @@ private fun KeypadCircle(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val hovered by interaction.collectIsHoveredAsState()
     val background =
-        if (pressed) PinDotFilled else MaterialTheme.colorScheme.surface
+        if (pressed || hovered) PinKeypadButtonPressed else PinKeypadButton
     Box(
         modifier = Modifier
             .size(width = 88.dp, height = 88.dp)
             .aspectRatio(1f)
             .clip(CircleShape)
             .background(background)
+            .hoverable(interaction)
             .clickable(
                 interactionSource = interaction,
                 indication = null,

@@ -43,6 +43,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Description
@@ -50,6 +51,7 @@ import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.BarChart
@@ -83,6 +85,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -132,6 +135,7 @@ import com.konvert.app.ui.theme.AvatarPlaceholder
 import com.konvert.app.ui.theme.HomeBalanceBarTint
 import com.konvert.app.ui.theme.HomeUsefulCardColor
 import com.konvert.app.ui.theme.HomeUsefulTileFill
+import com.konvert.app.ui.theme.HomeNavIconActive
 import com.konvert.app.ui.theme.HomeNavIconInactive
 import com.konvert.app.ui.theme.KeypadButton
 import com.konvert.app.ui.theme.LimitsGradientEnd
@@ -148,6 +152,7 @@ import com.konvert.app.ui.theme.QuickActionIconTint
 import com.konvert.app.ui.theme.TextPrimary
 import com.airbnb.lottie.LottieComposition
 import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.LottieClipSpec
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.rememberLottieAnimatable
@@ -200,7 +205,7 @@ private val HomeTopBarToBalancePaddingDp = 44.dp
 private const val HomeTopBarToBalancePaddingPx: Float = 92f
 
 /** Горизонтальний відступ [LazyColumn]. */
-private val HomeCardsLazyHorizontalPadding = 16.dp
+private val HomeCardsLazyHorizontalPadding = 14.dp
 
 /**
  * Горизонтальний inset [HorizontalPager] — тонкі смуги сусідніх карт біля центральної,
@@ -214,7 +219,7 @@ private val HomeCardsPagerPageSpacing = 0.dp
 private val HomeCardsPlateNeighborExtraPull = 54.dp
 
 /** Між нижнім краєм балансу (чипи) і верхом каруселі. */
-private val HomeSectionGapBalanceToCard = 70.dp
+private val HomeSectionGapBalanceToCard = 48.dp
 
 /** Зовнішній блок навколо пунктів «Особисті дані…» / «Налаштування…». */
 private val HomeProfileMenuOuterBlockColor = Color(0xFF272727)
@@ -233,10 +238,10 @@ private val HomeProfileMenuSheetShape = RoundedCornerShape(18.dp)
  * Висота, яку займає блок каруселі в [LazyColumn] — мала, щоб «Усі картки» та нижній контент піднялись.
  * Має бути достатньою під вищу пластину [HomeBankCardFrame] + нахил.
  */
-private val HomeCardCarouselLayoutReserveHeight = 220.dp
+private val HomeCardCarouselLayoutReserveHeight = 198.dp
 
 /** Висота слота під [HomeCardPlaceholder] — під вищу/ширшу пластину в [HomeMonoTiltedCard]. */
-private val HomeCardCarouselPagerVisualHeight = 248.dp
+private val HomeCardCarouselPagerVisualHeight = 226.dp
 
 /**
  * Вертикаль пластики на головному екрані (наклон «від користувача»):
@@ -273,20 +278,20 @@ private val HomeSectionGapCarouselToAllCards = (-122).dp
 private val HomeSectionOffsetQuickActionsAndOperationsY = (-105).dp
 
 /** Між «Усі картки» і швидкими діями — ~40 px. */
-private val HomeSectionGapAllCardsToQuick = 10.dp
+private val HomeSectionGapAllCardsToQuick = 6.dp
 /** Між швидкими діями і блоком «Операції». */
-private val HomeSectionGapQuickToOperations = 16.dp
+private val HomeSectionGapQuickToOperations = 8.dp
 /** Між блоком «Операції» (перший item) і «Ліміти та обмеження». */
 private val HomeSectionGapOperationsToLimits = 14.dp
 /** Між «Ліміти та обмеження» і «Корисне». */
-private val HomeSectionGapLimitsToUseful = 20.dp
+private val HomeSectionGapLimitsToUseful = 88.dp
 
 /**
  * Підняти блоки **під** «Операції» (ліміти + корисне) до операцій і на **ту саму** величину скоротити
  * вертикальний хвіст сторінки: спочатку зменшуються [HomeSectionGapOperationsToLimits] та
  * [HomeSectionGapLimitsToUseful], решта — з нижнього [PaddingValues] [LazyColumn].
  */
-private val HomeSectionCompactBelowOperationsDp = 56.dp
+private val HomeSectionCompactBelowOperationsDp = 72.dp
 
 /** У «Корисне»: однаковий горизонтальний inset для ряду курсів і сітки плиток. */
 private val HomeUsefulInnerHorizontalPadding = 10.dp
@@ -328,6 +333,7 @@ private const val HomeAllCardsChipIconAsset = "$OperationsLogosPath/card_negate.
 
 private const val HomeGraphNegateAsset = "graph_negate.png"
 private const val HomeGraphNegateInOperationsLogos = "$OperationsLogosPath/graph_negate.png"
+private const val HomeCatIconAsset = "$OperationsLogosPath/cat_icon.png"
 
 private const val HomeGiftBoxNegateAsset = "gift-box_negate.png"
 private const val HomeGiftBoxNegateInOperationsLogos = "$OperationsLogosPath/gift-box_negate.png"
@@ -384,10 +390,21 @@ private const val CreditsNavLottieAsset = "animations/credits_icon.json"
 private const val MoreNavLottieAsset = "animations/more_icon.json"
 private const val SavingsNavLottieAsset = "animations/deposits_dnm_16_quick.json"
 private const val MarketNavLottieAsset = "animations/market20_icon.json"
+private const val HomePullToRefreshRocketAsset = "animations/rocket.json"
+private val HomePullToRefreshRocketSize = 164.dp
+private const val HomePullToRefreshRocketVisualScale = 5.8f
 
-/** Неактивна вкладка: приглушення Lottie (підпис уже HomeNavIconInactive). */
+/** Активна вкладка: м'який tint Lottie до #fd8688; неактивна — приглушення. */
 private fun Modifier.lottieNavInactiveGrayTint(selected: Boolean): Modifier =
-    if (selected) this else alpha(0.42f)
+    if (selected) {
+        graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+            .drawWithContent {
+                drawContent()
+                drawRect(color = HomeNavIconActive, blendMode = BlendMode.SrcAtop)
+            }
+    } else {
+        alpha(0.42f)
+    }
 
 /**
  * Вертикальні палітри фону — по одній на кожну сторінку каруселі карт (узгоджено з [HomeCardsCarouselPageCount]).
@@ -453,9 +470,9 @@ private val HomeBgRadialMids: List<Color> = listOf(
 /** Затемнення для режиму «лише вікно» (немає виміряної висоти контенту). */
 private val HomeBgOverlayStops: Array<Pair<Float, Color>> = arrayOf(
     0.00f to Color.Transparent,
-    0.78f to Color.Transparent,
-    0.86f to Color(0x44000000),
-    0.93f to Color(0xCC121212),
+    0.83f to Color.Transparent,
+    0.90f to Color(0x44000000),
+    0.96f to Color(0xCC121212),
     1.00f to Color(0xFF121212)
 )
 
@@ -467,29 +484,29 @@ private val HomeBgContentScrollPalettes: List<Array<Pair<Float, Color>>> = listO
     arrayOf(
         0.00f to Color(0xFF0C0F44),
         0.35f to Color(0xFF122859),
-        0.45f to Color(0xFF101b2f),
-        0.55f to Color(0xFF121212),
+        0.50f to Color(0xFF101B2F),
+        0.62f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
         0.00f to Color(0xFF261132),
         0.35f to Color(0xFF2D2765),
-        0.45f to Color(0xFF1A1028),
-        0.55f to Color(0xFF121212),
+        0.50f to Color(0xFF1A1028),
+        0.62f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
         0.00f to Color(0xFF022028),
         0.35f to Color(0xFF053446),
-        0.45f to Color(0xFF061C22),
-        0.55f to Color(0xFF121212),
+        0.50f to Color(0xFF061C22),
+        0.62f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
         0.00f to Color(0xFF1D042C),
         0.35f to Color(0xFF51195A),
-        0.45f to Color(0xFF200C14),
-        0.55f to Color(0xFF121212),
+        0.50f to Color(0xFF200C14),
+        0.62f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     )
 )
@@ -621,7 +638,7 @@ fun StaticHomeBackground(
 fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
     var selectedBottomTab by remember { mutableStateOf(HomeBottomNavTab.Cards) }
     var savingsJarFlow by remember { mutableStateOf<SavingsJarFlow>(SavingsJarFlow.None) }
-    val bottomBarLiftDp = 12.dp
+    val bottomBarLiftDp = 0.dp
     /** Додатковий зсиг униз на 10 px екрана (щодо попереднього положення). */
     val bottomBarDownFromPx10 = (10f / LocalDensity.current.density).dp
 
@@ -653,7 +670,7 @@ fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
                     .fillMaxWidth()
                     .navigationBarsPadding()
                     .offset(y = -bottomBarLiftDp + bottomBarDownFromPx10)
-                    .padding(bottom = 2.dp)
+                    .padding(bottom = 0.dp)
             )
         }
 
@@ -822,6 +839,9 @@ internal fun HomeCardsTabDashboard(
     onPagerSectionHeightPx: (Float) -> Unit,
     onHomeScrollContentHeightPx: (Float) -> Unit,
     onRequestProfileMenu: () -> Unit = {},
+    pullToRefreshOffsetDp: androidx.compose.ui.unit.Dp = 0.dp,
+    showPullToRefreshRocket: Boolean = false,
+    pullToRefreshRocketTakeoffProgress: Float = 0f,
     modifier: Modifier = Modifier
 ) {
     val balanceSectionTopPadding =
@@ -905,7 +925,7 @@ internal fun HomeCardsTabDashboard(
                                     .padding(horizontal = HomeCardsLazyHorizontalPadding)
                             ) {
                                 Spacer(modifier = Modifier.height(balanceSectionTopPadding))
-                                HomeBalanceBlock()
+                                HomeBalanceBlock(kind = kind)
                             }
                             Column(
                                 modifier = Modifier
@@ -951,25 +971,37 @@ internal fun HomeCardsTabDashboard(
                                 ) {
                                     Spacer(modifier = Modifier.height(HomeSectionGapAllCardsToQuick))
                                     HomeQuickActions()
-                                    Spacer(modifier = Modifier.height(HomeSectionGapQuickToOperations))
-                                    HomeOperationsCard()
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(HomeSectionGapQuickToOperations),
+                                        contentAlignment = Alignment.BottomCenter
+                                    ) {
+                                        HomePullToRefreshRocket(
+                                            visible = showPullToRefreshRocket,
+                                            takeoffProgress = pullToRefreshRocketTakeoffProgress,
+                                            modifier = Modifier.offset(y = pullToRefreshOffsetDp / 2f)
+                                        )
+                                    }
+                                    HomeOperationsCard(
+                                        kind = kind,
+                                        modifier = Modifier.offset(y = pullToRefreshOffsetDp)
+                                    )
                                 }
                             }
                         }
                     }
-                }
-            }
-            item(key = "home_below_ops_static") {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = HomeCardsLazyHorizontalPadding)
-                        .offset(y = -compactBelow)
-                ) {
-                    Spacer(modifier = Modifier.height(spacerOpsToLimitsAfterCompact))
-                    HomeLimitsAbroadCard()
-                    Spacer(modifier = Modifier.height(spacerLimitsToUsefulAfterCompact))
-                    HomeUsefulCard()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = HomeCardsLazyHorizontalPadding)
+                            .offset(y = -compactBelow)
+                    ) {
+                        Spacer(modifier = Modifier.height(spacerOpsToLimitsAfterCompact))
+                        HomeLimitsAbroadCard()
+                        Spacer(modifier = Modifier.height(spacerLimitsToUsefulAfterCompact))
+                        HomeUsefulCard()
+                    }
                 }
             }
         }
@@ -1268,6 +1300,7 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
     val graphNegateRoot = rememberAssetImageBitmap(HomeGraphNegateAsset)
     val graphNegateOps = rememberAssetImageBitmap(HomeGraphNegateInOperationsLogos)
     val graphNegateBitmap = graphNegateRoot ?: graphNegateOps
+    val catIconBitmap = rememberAssetImageBitmap(HomeCatIconAsset)
     val chartsCd = stringResource(R.string.home_charts_cd)
     val bonusAmountText = stringResource(R.string.home_bonus_amount)
     val cashbackChipSemantics =
@@ -1335,6 +1368,25 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Normal
                 )
+            }
+            if (catIconBitmap != null) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        bitmap = catIconBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.size(width = 40.dp, height = 27.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
             }
             Box(
                 modifier = Modifier
@@ -1433,14 +1485,21 @@ private fun HomeBalanceAddChip(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun HomeBalanceBlock() {
+private fun HomeBalanceBlock(kind: HomeCarouselCardKind) {
     val admin = LocalAppAdmin.current
-    val mainBal = admin?.state?.balanceMain?.takeIf { it.isNotBlank() }
+    val mainBal = when (kind) {
+        HomeCarouselCardKind.Black -> admin?.state?.cardOrDefault(0)?.balanceDisplay
+        HomeCarouselCardKind.WhiteBlackEdge -> admin?.state?.cardOrDefault(1)?.balanceDisplay
+        HomeCarouselCardKind.BlackGreenEdgeUsd -> admin?.state?.cardOrDefault(2)?.balanceDisplay
+        HomeCarouselCardKind.BlackRedEdgeEur -> admin?.state?.cardOrDefault(3)?.balanceDisplay
+    }?.takeIf { it.isNotBlank() }
         ?: stringResource(R.string.home_balance_main)
     val walletBal = admin?.state?.balanceWallet?.takeIf { it.isNotBlank() }
         ?: stringResource(R.string.home_balance_wallet)
     val creditBal = admin?.state?.balanceCredit?.takeIf { it.isNotBlank() }
         ?: stringResource(R.string.home_balance_credit)
+    val showSecondaryBalances = kind == HomeCarouselCardKind.Black
+    val secondaryBalancesReservedHeight = 46.dp
     val walletChipIcon = rememberAssetImageBitmap(CardWalletNegateAsset)
     val creditChipIcon = rememberAssetImageBitmap(CardAddDebitNegateAsset)
     val density = LocalDensity.current.density
@@ -1465,53 +1524,57 @@ private fun HomeBalanceBlock() {
                 letterSpacing = 0.5.sp
             )
         }
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BalanceChip(
-                icon = {
-                    if (walletChipIcon != null) {
-                        Image(
-                            bitmap = walletChipIcon,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            contentScale = ContentScale.Fit,
-                            colorFilter = ColorFilter.tint(HomeBalanceBarTint)
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.AccountBalanceWallet,
-                            contentDescription = null,
-                            tint = HomeBalanceBarTint,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                },
-                text = walletBal
-            )
-            BalanceChip(
-                icon = {
-                    if (creditChipIcon != null) {
-                        Image(
-                            bitmap = creditChipIcon,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            contentScale = ContentScale.Fit,
-                            colorFilter = ColorFilter.tint(HomeBalanceBarTint)
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Filled.CreditCard,
-                            contentDescription = null,
-                            tint = HomeBalanceBarTint,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                },
-                text = creditBal
-            )
+        if (showSecondaryBalances) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BalanceChip(
+                    icon = {
+                        if (walletChipIcon != null) {
+                            Image(
+                                bitmap = walletChipIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                contentScale = ContentScale.Fit,
+                                colorFilter = ColorFilter.tint(HomeBalanceBarTint)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.AccountBalanceWallet,
+                                contentDescription = null,
+                                tint = HomeBalanceBarTint,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    },
+                    text = walletBal
+                )
+                BalanceChip(
+                    icon = {
+                        if (creditChipIcon != null) {
+                            Image(
+                                bitmap = creditChipIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                contentScale = ContentScale.Fit,
+                                colorFilter = ColorFilter.tint(HomeBalanceBarTint)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.CreditCard,
+                                contentDescription = null,
+                                tint = HomeBalanceBarTint,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    },
+                    text = creditBal
+                )
+            }
+        } else {
+            Spacer(modifier = Modifier.height(6.dp + secondaryBalancesReservedHeight))
         }
     }
 }
@@ -1536,6 +1599,7 @@ private fun HomeCardPlaceholder(
     kind: HomeCarouselCardKind = HomeCarouselCardKind.Black,
     onCardClick: () -> Unit = {}
 ) {
+    val admin = LocalAppAdmin.current
     val kreditFront = rememberKreditFrontFontFamily()
     val schemeTypefaceFamily = MaterialTheme.typography.titleMedium.fontFamily
     val title = stringResource(
@@ -1546,7 +1610,14 @@ private fun HomeCardPlaceholder(
             HomeCarouselCardKind.BlackRedEdgeEur -> R.string.home_carousel_card_black_red_eur
         }
     )
-    val number = stringResource(R.string.home_card_masked_number)
+    val defaultNumber = stringResource(R.string.home_card_masked_number)
+    val numberRaw = when (kind) {
+        HomeCarouselCardKind.Black -> admin?.state?.cardOrDefault(0)?.cardNumber
+        HomeCarouselCardKind.WhiteBlackEdge -> admin?.state?.cardOrDefault(1)?.cardNumber
+        HomeCarouselCardKind.BlackGreenEdgeUsd -> admin?.state?.cardOrDefault(2)?.cardNumber
+        HomeCarouselCardKind.BlackRedEdgeEur -> admin?.state?.cardOrDefault(3)?.cardNumber
+    }?.takeIf { it.isNotBlank() } ?: defaultNumber
+    val number = maskCardNumberForDisplay(numberRaw)
     val visaLogo = rememberAssetImageBitmap(CardVisaLogoAsset)
     val monobankLogo = rememberAssetImageBitmap(CardMonobankNegateAsset)
     val visaCd = stringResource(R.string.home_card_scheme)
@@ -1615,6 +1686,14 @@ private fun HomeCardPlaceholder(
                 .offset(y = plateOffsetY)
         )
     }
+}
+
+private fun maskCardNumberForDisplay(rawNumber: String): String {
+    val digits = rawNumber.filter { it.isDigit() }
+    if (digits.length < 8) return rawNumber
+    val first4 = digits.take(4)
+    val last4 = digits.takeLast(4)
+    return "$first4 **** **** $last4"
 }
 
 /**
@@ -1749,20 +1828,20 @@ private fun HomeAllCardsChip(modifier: Modifier = Modifier) {
         Row(
             modifier = Modifier
                 .clip(ChipShape)
-                .background(KeypadButton.copy(alpha = 0.5f))
+                .background(KeypadButton.copy(alpha = 0.24f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) { }
-                .padding(horizontal = 26.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             if (allCardsIcon != null) {
                 Image(
                     bitmap = allCardsIcon,
                     contentDescription = null,
-                    modifier = Modifier.size(15.dp),
+                    modifier = Modifier.size(12.dp),
                     contentScale = ContentScale.Fit,
                     colorFilter = ColorFilter.tint(PinPromptText)
                 )
@@ -1771,13 +1850,13 @@ private fun HomeAllCardsChip(modifier: Modifier = Modifier) {
                     imageVector = Icons.Filled.CreditCard,
                     contentDescription = null,
                     tint = PinPromptText,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(12.dp)
                 )
             }
             Text(
                 text = stringResource(R.string.home_all_cards),
                 color = TextPrimary,
-                fontSize = 12.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -1883,10 +1962,78 @@ private fun QuickAction(label: String, icon: @Composable () -> Unit) {
     }
 }
 
+private data class HomeOperationUi(
+    val title: String,
+    val amount: String,
+    val dateLabel: String,
+    val commissionAmount: String?,
+    val logoAssetName: String?,
+    val logoCircleBackground: Color = AvatarPlaceholder,
+    val fallbackIcon: ImageVector? = null,
+    val fallbackIconTint: Color = HomeBalanceBarTint
+)
+
 @Composable
-private fun HomeOperationsCard() {
+private fun HomeOperationsCard(
+    kind: HomeCarouselCardKind,
+    modifier: Modifier = Modifier
+) {
+    val admin = LocalAppAdmin.current
+    var allOpsOpen by remember { mutableStateOf(false) }
+    var selectedOperation by remember { mutableStateOf<HomeOperationUi?>(null) }
+    val cardIndex = when (kind) {
+        HomeCarouselCardKind.Black -> 0
+        HomeCarouselCardKind.WhiteBlackEdge -> 1
+        HomeCarouselCardKind.BlackGreenEdgeUsd -> 2
+        HomeCarouselCardKind.BlackRedEdgeEur -> 3
+    }
+    val defaultOps = listOf(
+        HomeOperationUi(
+            title = stringResource(R.string.home_op_steam),
+            amount = stringResource(R.string.home_op_steam_amount),
+            dateLabel = "Сьогодні",
+            commissionAmount = null,
+            logoAssetName = "steam.png"
+        ),
+        HomeOperationUi(
+            title = stringResource(R.string.home_op_card),
+            amount = stringResource(R.string.home_op_card_amount),
+            dateLabel = "Вчора",
+            commissionAmount = null,
+            logoAssetName = null,
+            fallbackIcon = Icons.Filled.CreditCard
+        ),
+        HomeOperationUi(
+            title = stringResource(R.string.home_op_mcd),
+            amount = stringResource(R.string.home_op_mcd_amount),
+            dateLabel = "14 квітня 2026",
+            commissionAmount = null,
+            logoAssetName = null,
+            logoCircleBackground = Color(0xFFC8102E),
+            fallbackIcon = Icons.Filled.Restaurant,
+            fallbackIconTint = Color.White
+        )
+    )
+    val configuredOps = admin?.state
+        ?.cardOrDefault(cardIndex)
+        ?.operations
+        ?.filter { it.title.isNotBlank() || it.amount.isNotBlank() }
+        ?.map { op ->
+            HomeOperationUi(
+                title = op.title.ifBlank { stringResource(R.string.admin_card_operation_default_title) },
+                amount = op.amount.ifBlank { stringResource(R.string.admin_card_operation_default_amount) },
+                dateLabel = op.dateLabel.ifBlank { "Без дати" },
+                commissionAmount = op.commissionAmount.takeIf { op.hasCommission && it.isNotBlank() },
+                logoAssetName = null,
+                fallbackIcon = Icons.Filled.CreditCard
+            )
+        }
+        .orEmpty()
+    val opsToRender = if (configuredOps.isNotEmpty()) configuredOps else defaultOps
+    val topThreeOps = opsToRender.take(3)
+
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = CardShape,
         color = OperationsBlockColor
     ) {
@@ -1894,7 +2041,7 @@ private fun HomeOperationsCard() {
             modifier = Modifier.padding(
                 start = 16.dp,
                 end = 16.dp,
-                top = 24.dp,
+                top = 18.dp,
                 bottom = 16.dp
             )
         ) {
@@ -1916,7 +2063,7 @@ private fun HomeOperationsCard() {
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
-                        ) { }
+                        ) { allOpsOpen = true }
                         .padding(
                             horizontal = OperationsAllChipPaddingH,
                             vertical = OperationsAllChipPaddingV
@@ -1932,29 +2079,68 @@ private fun HomeOperationsCard() {
                 }
             }
             Spacer(modifier = Modifier.height(22.dp))
-            OperationRow(
-                title = stringResource(R.string.home_op_steam),
-                amount = stringResource(R.string.home_op_steam_amount),
-                logoAssetName = "steam.png"
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-            OperationRow(
-                title = stringResource(R.string.home_op_card),
-                amount = stringResource(R.string.home_op_card_amount),
-                logoAssetName = null,
-                fallbackIcon = Icons.Filled.CreditCard
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-            OperationRow(
-                title = stringResource(R.string.home_op_mcd),
-                amount = stringResource(R.string.home_op_mcd_amount),
-                logoAssetName = null,
-                logoCircleBackground = Color(0xFFC8102E),
-                fallbackIcon = Icons.Filled.Restaurant,
-                fallbackIconTint = Color.White
-            )
+            topThreeOps.forEachIndexed { index, operation ->
+                OperationRow(
+                    title = operation.title,
+                    amount = operation.amount,
+                    logoAssetName = operation.logoAssetName,
+                    logoCircleBackground = operation.logoCircleBackground,
+                    fallbackIcon = operation.fallbackIcon,
+                    fallbackIconTint = operation.fallbackIconTint,
+                    onClick = { selectedOperation = operation }
+                )
+                if (index != topThreeOps.lastIndex) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
+            }
         }
     }
+    if (allOpsOpen) {
+        HomeAllOperationsScreen(
+            operations = opsToRender,
+            onDismiss = { allOpsOpen = false },
+            onOperationClick = { selectedOperation = it }
+        )
+    }
+    selectedOperation?.let { operation ->
+        HomeOperationDetailScreen(
+            operation = operation,
+            onDismiss = { selectedOperation = null }
+        )
+    }
+}
+
+@Composable
+private fun HomePullToRefreshRocket(
+    visible: Boolean,
+    takeoffProgress: Float,
+    modifier: Modifier = Modifier
+) {
+    if (!visible) return
+    val composition by rememberLottieComposition(LottieCompositionSpec.Asset(HomePullToRefreshRocketAsset))
+    val launchY by animateFloatAsState(
+        targetValue = -220f * takeoffProgress,
+        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
+        label = "homePullRocketLaunchY"
+    )
+    val alpha by animateFloatAsState(
+        targetValue = (1f - takeoffProgress).coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 520),
+        label = "homePullRocketAlpha"
+    )
+    LottieAnimation(
+        composition = composition,
+        iterations = if (takeoffProgress > 0.01f) 1 else LottieConstants.IterateForever,
+        clipToCompositionBounds = false,
+        modifier = modifier
+            .size(HomePullToRefreshRocketSize)
+            .graphicsLayer {
+                translationY = launchY
+                this.alpha = alpha
+                scaleX = HomePullToRefreshRocketVisualScale
+                scaleY = HomePullToRefreshRocketVisualScale
+            }
+    )
 }
 
 @Composable
@@ -1964,7 +2150,8 @@ private fun OperationRow(
     logoAssetName: String?,
     logoCircleBackground: Color = AvatarPlaceholder,
     fallbackIcon: ImageVector? = null,
-    fallbackIconTint: Color = HomeBalanceBarTint
+    fallbackIconTint: Color = HomeBalanceBarTint,
+    onClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val logoBitmap = remember(logoAssetName) {
@@ -1982,7 +2169,7 @@ private fun OperationRow(
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
-            ) { },
+            ) { onClick() },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -2031,6 +2218,173 @@ private fun OperationRow(
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold
         )
+    }
+}
+
+@Composable
+private fun HomeAllOperationsScreen(
+    operations: List<HomeOperationUi>,
+    onDismiss: () -> Unit,
+    onOperationClick: (HomeOperationUi) -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF09090A))
+                .statusBarsPadding()
+        ) {
+            val grouped = operations.groupBy { it.dateLabel }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.home_card_detail_close_cd),
+                            tint = Color.White
+                        )
+                    }
+                    IconButton(onClick = { }) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = stringResource(R.string.home_charts_cd),
+                            tint = Color.White
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = "200.49 ₴",
+                        color = Color.White,
+                        fontSize = 34.sp,
+                        fontWeight = FontWeight.Light,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    grouped.forEach { (dateLabel, rows) ->
+                        Text(
+                            text = dateLabel,
+                            color = PinPromptText,
+                            fontSize = 24.sp,
+                            modifier = Modifier.padding(vertical = 10.dp)
+                        )
+                        rows.forEachIndexed { index, row ->
+                            OperationRow(
+                                title = row.title,
+                                amount = row.amount,
+                                logoAssetName = row.logoAssetName,
+                                logoCircleBackground = row.logoCircleBackground,
+                                fallbackIcon = row.fallbackIcon,
+                                fallbackIconTint = row.fallbackIconTint,
+                                onClick = { onOperationClick(row) }
+                            )
+                            if (index != rows.lastIndex) {
+                                Spacer(modifier = Modifier.height(20.dp))
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeOperationDetailScreen(
+    operation: HomeOperationUi,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF0B0B0D))
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(R.string.jar_bank_back_cd),
+                            tint = Color.White
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(40.dp))
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color(0xFF242428)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = operation.title,
+                            color = Color.White,
+                            fontSize = 34.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = operation.dateLabel,
+                            color = PinPromptText,
+                            fontSize = 22.sp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = operation.amount,
+                            color = Color.White,
+                            fontSize = 52.sp,
+                            fontWeight = FontWeight.Light
+                        )
+                        operation.commissionAmount?.let { commission ->
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = stringResource(R.string.home_operation_commission, commission),
+                                color = PinPromptText,
+                                fontSize = 22.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -2361,7 +2715,7 @@ private fun HomeBottomBar(
             onClick = { onTabSelected(HomeBottomNavTab.Market) }
         ) {
             val marketTint =
-                if (selectedTab == HomeBottomNavTab.Market) AccentRed else HomeNavIconInactive
+                if (selectedTab == HomeBottomNavTab.Market) HomeNavIconActive else HomeNavIconInactive
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -2438,7 +2792,7 @@ private fun NavPillCardsLottieNavItem(
         }
     }
 
-    val tint = if (selected) AccentRed else HomeNavIconInactive
+    val tint = if (selected) HomeNavIconActive else HomeNavIconInactive
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
@@ -2508,7 +2862,7 @@ private fun NavPillSavingsLottieNavItem(
         anim.snapTo(c, progressForFrame(c, SavingsNavTapMaxFrameInclusive.toFloat()))
     }
 
-    val tint = if (selected) AccentRed else HomeNavIconInactive
+    val tint = if (selected) HomeNavIconActive else HomeNavIconInactive
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
@@ -2575,7 +2929,7 @@ private fun NavPillLottieNavItem(
         )
     }
 
-    val tint = if (selected) AccentRed else HomeNavIconInactive
+    val tint = if (selected) HomeNavIconActive else HomeNavIconInactive
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier

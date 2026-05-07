@@ -1,9 +1,11 @@
 package com.konvert.app.ui.admin
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -18,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.konvert.app.R
 import com.konvert.app.admin.AppAdminController
+import com.konvert.app.admin.CardAdminConfig
+import com.konvert.app.admin.CardOperationAdminConfig
 import com.konvert.app.admin.JarAdminConfig
 
 private val AdminBg = Color(0xFF1C1C1C)
@@ -53,20 +59,18 @@ fun AdminMainPanel(
     controller: AppAdminController,
     onBack: () -> Unit,
     onOpenJarSettings: (Int) -> Unit,
+    onOpenCardSettings: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val s = controller.state
     var mainFirst by remember { mutableStateOf(s.mainFirstName) }
     var fullName by remember { mutableStateOf(s.accountFullName) }
-    var balMain by remember { mutableStateOf(s.balanceMain) }
-    var balWallet by remember { mutableStateOf(s.balanceWallet) }
-    var balCredit by remember { mutableStateOf(s.balanceCredit) }
-    LaunchedEffect(s.mainFirstName, s.accountFullName, s.balanceMain, s.balanceWallet, s.balanceCredit) {
+    LaunchedEffect(
+        s.mainFirstName,
+        s.accountFullName
+    ) {
         mainFirst = s.mainFirstName
         fullName = s.accountFullName
-        balMain = s.balanceMain
-        balWallet = s.balanceWallet
-        balCredit = s.balanceCredit
     }
 
     Column(
@@ -114,22 +118,27 @@ fun AdminMainPanel(
                 value = fullName,
                 onValueChange = { fullName = it }
             )
-            AdminLabeledField(
-                label = stringResource(R.string.admin_field_balance_main),
-                value = balMain,
-                onValueChange = { balMain = it }
-            )
-            AdminLabeledField(
-                label = stringResource(R.string.admin_field_balance_wallet),
-                value = balWallet,
-                onValueChange = { balWallet = it }
-            )
-            AdminLabeledField(
-                label = stringResource(R.string.admin_field_balance_credit),
-                value = balCredit,
-                onValueChange = { balCredit = it }
-            )
             Spacer(modifier = Modifier.height(8.dp))
+            controller.state.cards.forEachIndexed { index, card ->
+                val cardSettingsLabel = when (index) {
+                    0 -> stringResource(R.string.admin_configure_card_1)
+                    1 -> stringResource(R.string.admin_configure_card_2)
+                    2 -> stringResource(R.string.admin_configure_card_3)
+                    else -> stringResource(R.string.admin_configure_card_4)
+                }
+                Button(
+                    onClick = { onOpenCardSettings(index) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AdminBlue)
+                ) {
+                    Text(
+                        text = cardSettingsLabel + " — ${card.name}",
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
             controller.state.jars.forEachIndexed { index, jar ->
                 Button(
                     onClick = { onOpenJarSettings(index) },
@@ -147,7 +156,13 @@ fun AdminMainPanel(
         }
         Button(
             onClick = {
-                controller.updateMain(mainFirst, fullName, balMain, balWallet, balCredit)
+                controller.updateMain(
+                    mainFirstName = mainFirst,
+                    accountFullName = fullName,
+                    balanceMain = controller.state.balanceMain,
+                    balanceWallet = controller.state.balanceWallet,
+                    balanceCredit = controller.state.balanceCredit
+                )
                 onBack()
             },
             modifier = Modifier
@@ -158,6 +173,309 @@ fun AdminMainPanel(
             colors = ButtonDefaults.buttonColors(containerColor = AdminGreen)
         ) {
             Text(stringResource(R.string.admin_save), color = Color.White, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+fun CardAdminPanel(
+    controller: AppAdminController,
+    cardIndex: Int,
+    onBack: () -> Unit,
+    onOpenOperationsSettings: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val card = controller.state.cardOrDefault(cardIndex)
+    var name by remember(cardIndex) { mutableStateOf(card.name) }
+    var balance by remember(cardIndex) { mutableStateOf(card.balanceDisplay) }
+    var number by remember(cardIndex) { mutableStateOf(card.cardNumber) }
+    var balMain by remember(cardIndex) { mutableStateOf(controller.state.balanceMain) }
+    var balWallet by remember(cardIndex) { mutableStateOf(controller.state.balanceWallet) }
+    var balCredit by remember(cardIndex) { mutableStateOf(controller.state.balanceCredit) }
+
+    LaunchedEffect(cardIndex, controller.state.cards) {
+        val c = controller.state.cardOrDefault(cardIndex)
+        name = c.name
+        balance = c.balanceDisplay
+        number = c.cardNumber
+        balMain = controller.state.balanceMain
+        balWallet = controller.state.balanceWallet
+        balCredit = controller.state.balanceCredit
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(AdminBg)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = stringResource(R.string.jar_bank_back_cd),
+                    tint = Color.White
+                )
+            }
+            Text(
+                text = stringResource(R.string.admin_card_title, cardIndex + 1),
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            AdminLabeledField(
+                label = stringResource(R.string.admin_card_field_name),
+                value = name,
+                onValueChange = { name = it }
+            )
+            AdminLabeledField(
+                label = stringResource(R.string.admin_card_field_balance),
+                value = balance,
+                onValueChange = { balance = it }
+            )
+            if (cardIndex == 0) {
+                AdminLabeledField(
+                    label = stringResource(R.string.admin_field_balance_main),
+                    value = balMain,
+                    onValueChange = { balMain = it }
+                )
+                AdminLabeledField(
+                    label = stringResource(R.string.admin_field_balance_wallet),
+                    value = balWallet,
+                    onValueChange = { balWallet = it }
+                )
+                AdminLabeledField(
+                    label = stringResource(R.string.admin_field_balance_credit),
+                    value = balCredit,
+                    onValueChange = { balCredit = it }
+                )
+            }
+            AdminLabeledField(
+                label = stringResource(R.string.admin_card_field_number),
+                value = number,
+                onValueChange = { number = it }
+            )
+            Button(
+                onClick = { onOpenOperationsSettings(cardIndex) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AdminBlue)
+            ) {
+                Text(stringResource(R.string.admin_card_operations_open), color = Color.White)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    if (cardIndex == 0) {
+                        controller.updateMain(
+                            mainFirstName = controller.state.mainFirstName,
+                            accountFullName = controller.state.accountFullName,
+                            balanceMain = balMain,
+                            balanceWallet = balWallet,
+                            balanceCredit = balCredit
+                        )
+                    }
+                    controller.updateCard(
+                        cardIndex,
+                        CardAdminConfig(
+                            name = name,
+                            balanceDisplay = balance,
+                            cardNumber = number,
+                            operations = controller.state.cardOrDefault(cardIndex).operations
+                        )
+                    )
+                    onBack()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AdminGreen)
+            ) {
+                Text(stringResource(R.string.admin_jar_confirm), color = Color.White, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+fun CardOperationsAdminPanel(
+    controller: AppAdminController,
+    cardIndex: Int,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val defaultOperationTitle = stringResource(R.string.admin_card_operation_default_title)
+    val defaultOperationAmount = stringResource(R.string.admin_card_operation_default_amount)
+    val defaultOperationDate = stringResource(R.string.admin_card_operation_default_date)
+    var operations by remember(cardIndex) {
+        mutableStateOf(controller.state.cardOrDefault(cardIndex).operations)
+    }
+    LaunchedEffect(cardIndex, controller.state.cards) {
+        operations = controller.state.cardOrDefault(cardIndex).operations
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(AdminBg)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = stringResource(R.string.jar_bank_back_cd),
+                    tint = Color.White
+                )
+            }
+            Text(
+                text = stringResource(R.string.admin_card_operations_title),
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            operations.forEachIndexed { opIndex, operation ->
+                Text(
+                    text = stringResource(R.string.admin_card_operation_block, opIndex + 1),
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                AdminLabeledField(
+                    label = stringResource(R.string.admin_card_operation_name, opIndex + 1),
+                    value = operation.title,
+                    onValueChange = { value ->
+                        operations = operations.mapIndexed { i, op ->
+                            if (i == opIndex) op.copy(title = value) else op
+                        }
+                    }
+                )
+                AdminLabeledField(
+                    label = stringResource(R.string.admin_card_operation_amount, opIndex + 1),
+                    value = operation.amount,
+                    onValueChange = { value ->
+                        operations = operations.mapIndexed { i, op ->
+                            if (i == opIndex) op.copy(amount = value) else op
+                        }
+                    }
+                )
+                AdminLabeledField(
+                    label = stringResource(R.string.admin_card_operation_date, opIndex + 1),
+                    value = operation.dateLabel,
+                    onValueChange = { value ->
+                        operations = operations.mapIndexed { i, op ->
+                            if (i == opIndex) op.copy(dateLabel = value) else op
+                        }
+                    }
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            operations = operations.mapIndexed { i, op ->
+                                if (i == opIndex) op.copy(hasCommission = !op.hasCommission) else op
+                            }
+                        },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = operation.hasCommission,
+                        onCheckedChange = { checked ->
+                            operations = operations.mapIndexed { i, op ->
+                                if (i == opIndex) op.copy(hasCommission = checked) else op
+                            }
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.admin_card_operation_has_commission),
+                        color = Color.White
+                    )
+                }
+                if (operation.hasCommission) {
+                    AdminLabeledField(
+                        label = stringResource(R.string.admin_card_operation_commission, opIndex + 1),
+                        value = operation.commissionAmount,
+                        onValueChange = { value ->
+                            operations = operations.mapIndexed { i, op ->
+                                if (i == opIndex) op.copy(commissionAmount = value) else op
+                            }
+                        }
+                    )
+                }
+                Button(
+                    onClick = { operations = operations.filterIndexed { i, _ -> i != opIndex } },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF992222))
+                ) {
+                    Text(stringResource(R.string.admin_card_operation_delete), color = Color.White)
+                }
+            }
+
+            Button(
+                onClick = {
+                    operations = operations + CardOperationAdminConfig(
+                        title = defaultOperationTitle,
+                        amount = defaultOperationAmount,
+                        dateLabel = defaultOperationDate
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AdminBlue)
+            ) {
+                Text(stringResource(R.string.admin_card_operation_add), color = Color.White)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    val card = controller.state.cardOrDefault(cardIndex)
+                    controller.updateCard(
+                        cardIndex,
+                        card.copy(
+                            operations = operations.filter {
+                                it.title.isNotBlank() || it.amount.isNotBlank()
+                            }
+                        )
+                    )
+                    onBack()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AdminGreen)
+            ) {
+                Text(stringResource(R.string.admin_jar_confirm), color = Color.White, fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }

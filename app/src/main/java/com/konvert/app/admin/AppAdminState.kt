@@ -23,12 +23,57 @@ data class JarAdminConfig(
     val statGlobeDisplay: String = "1 014 ₴"
 )
 
+data class CardOperationAdminConfig(
+    val title: String = "Steam",
+    val amount: String = "-100 ₴",
+    val dateLabel: String = "Сьогодні",
+    val hasCommission: Boolean = false,
+    val commissionAmount: String = "0 ₴"
+)
+
+data class CardAdminConfig(
+    val name: String,
+    val balanceDisplay: String,
+    val cardNumber: String,
+    val operations: List<CardOperationAdminConfig>
+)
+
 data class AppAdminState(
     val mainFirstName: String = "Андрій",
     val accountFullName: String = "Андрій Коваленко",
     val balanceMain: String = "102 144 ₴",
     val balanceWallet: String = "2 144 ₴",
     val balanceCredit: String = "100 000 ₴",
+    val cards: List<CardAdminConfig> = listOf(
+        CardAdminConfig(
+            name = "Чорна картка",
+            balanceDisplay = "102 144 ₴",
+            cardNumber = "4874 1000 2512 5553",
+            operations = listOf(
+                CardOperationAdminConfig(title = "Steam", amount = "-100 ₴", dateLabel = "Сьогодні"),
+                CardOperationAdminConfig(title = "537552****2293", amount = "-26 500 ₴", dateLabel = "Вчора"),
+                CardOperationAdminConfig(title = "McDonald's", amount = "-556.00 ₴", dateLabel = "14 квітня 2026")
+            )
+        ),
+        CardAdminConfig(
+            name = "Біла картка",
+            balanceDisplay = "41 220 ₴",
+            cardNumber = "4444 2222 1111 0001",
+            operations = emptyList()
+        ),
+        CardAdminConfig(
+            name = "Третя картка",
+            balanceDisplay = "1 240 $",
+            cardNumber = "5555 3333 1111 0002",
+            operations = emptyList()
+        ),
+        CardAdminConfig(
+            name = "Четверта картка",
+            balanceDisplay = "980 €",
+            cardNumber = "6666 4444 1111 0003",
+            operations = emptyList()
+        )
+    ),
     val jars: List<JarAdminConfig> = listOf(
         JarAdminConfig(),
         JarAdminConfig(
@@ -48,6 +93,14 @@ data class AppAdminState(
     )
 ) {
     fun jarOrDefault(index: Int): JarAdminConfig = jars.getOrNull(index) ?: JarAdminConfig()
+    fun cardOrDefault(index: Int): CardAdminConfig =
+        cards.getOrNull(index)
+            ?: CardAdminConfig(
+                name = "Картка ${index + 1}",
+                balanceDisplay = balanceMain,
+                cardNumber = "4874 1000 2512 5553",
+                operations = emptyList()
+            )
 }
 
 class AppAdminController(initial: AppAdminState = AppAdminState()) {
@@ -73,6 +126,13 @@ class AppAdminController(initial: AppAdminState = AppAdminState()) {
         if (index !in state.jars.indices) return
         state = state.copy(
             jars = state.jars.mapIndexed { i, j -> if (i == index) jar else j }
+        )
+    }
+
+    fun updateCard(index: Int, card: CardAdminConfig) {
+        if (index !in state.cards.indices) return
+        state = state.copy(
+            cards = state.cards.mapIndexed { i, c -> if (i == index) card else c }
         )
     }
 }

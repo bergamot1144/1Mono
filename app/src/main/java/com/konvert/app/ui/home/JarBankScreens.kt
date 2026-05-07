@@ -9,10 +9,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -55,8 +58,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -66,8 +69,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -99,8 +105,9 @@ internal sealed class SavingsJarFlow {
     ) : SavingsJarFlow()
 }
 
-private val JarScreenBg = Color(0xFF121212)
-private val JarHeaderPink = Color(0xFFB34A66)
+private val JarScreenBg = Color(0xFF262626)
+private val JarStatsSectionBg = Color(0xFF1D1D1D)
+private val JarHeaderPink = Color(0xFFBC5C68)
 private val JarIconCircle = Color(0xFF7A2F45)
 private val JarCaptionMuted = Color(0xFF8E8E93)
 private val JarActionCircleBg = Color(0xFF2C2C2E)
@@ -116,7 +123,22 @@ private val ShareMuted = Color(0xFF8E8E93)
 private val ShareInnerButtonBg = Color(0xFF2C2C2E)
 
 private const val OperationsLogosPath = "operations_logos"
+private const val MainJarAsset = "$OperationsLogosPath/main_jar.png"
+private const val JarHeaderIconAsset = "$OperationsLogosPath/jar1.png"
+private const val JarActionShareAsset = "$OperationsLogosPath/share_jar.png"
+private const val JarActionTopUpAsset = "$OperationsLogosPath/replenish_jar.png"
+private const val JarActionDeductionsAsset = "$OperationsLogosPath/connect_bathroom.png"
+private const val JarActionFavoriteAsset = "$OperationsLogosPath/add_to_favorite.png"
+private const val JarActionStatementAsset = "$OperationsLogosPath/look_account.png"
+private const val JarActionSettingsAsset = "$OperationsLogosPath/jar_settings.png"
+private const val JarActionWithdrawAsset = "$OperationsLogosPath/get_from_jar.png"
+private const val JarActionBreakAsset = "$OperationsLogosPath/broke_jar.png"
+private const val JarHeaderCoinsBgAsset = "$OperationsLogosPath/coins_bg1.png"
+private const val JarHeaderJarBgAsset = "$OperationsLogosPath/jar_bg1.png"
+private const val JarStatFlagAsset = "$OperationsLogosPath/prapor.png"
+private const val JarStatEarthAsset = "$OperationsLogosPath/earth.png"
 private val MonoLogoCandidates = listOf(
+    "$OperationsLogosPath/mini_mono.png",
     "$OperationsLogosPath/monobank.png",
     "$OperationsLogosPath/monobank_negate (1).png"
 )
@@ -146,88 +168,92 @@ internal fun JarBankDetailScreen(
 ) {
     val scroll = rememberScrollState()
     val monoLogo = rememberFirstJarAssetBitmap(MonoLogoCandidates)
+    val jarHeaderIcon = rememberFirstJarAssetBitmap(listOf(JarHeaderIconAsset))
     val admin = LocalAppAdmin.current
     val jar = admin?.state?.jarOrDefault(jarIndex) ?: JarAdminConfig()
     val pinkHeaderHeight = 210.dp
     val darkSheetTopInset = 78.dp
     val sheetTopRadius = 28.dp
+    val statusBarTop = with(LocalDensity.current) {
+        WindowInsets.statusBars.getTop(this).toDp()
+    }
+    val sheetTop = statusBarTop + darkSheetTopInset
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(JarScreenBg)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .verticalScroll(scroll)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentHeight()
+                .height(statusBarTop + pinkHeaderHeight)
+                .background(JarHeaderPink)
+                .align(Alignment.TopCenter)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(pinkHeaderHeight)
-                    .background(JarHeaderPink)
-                    .jarHeaderWatermarkPattern()
-            )
-
+            JarHeaderBackgroundPattern(modifier = Modifier.fillMaxSize())
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = sheetTop)
+                .clip(RoundedCornerShape(topStart = sheetTopRadius, topEnd = sheetTopRadius))
+                .background(JarScreenBg)
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = sheetTop + 40.dp)
+                .navigationBarsPadding()
+                .verticalScroll(scroll)
+        ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = darkSheetTopInset)
-                    .clip(RoundedCornerShape(topStart = sheetTopRadius, topEnd = sheetTopRadius))
-                    .background(JarScreenBg)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(modifier = Modifier.height(40.dp))
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = jar.name,
-                        color = Color.White,
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Box(
-                        modifier = Modifier
-                            .width(120.dp)
-                            .height(1.dp)
-                            .background(JarDividerLine)
-                    )
-                    Spacer(modifier = Modifier.height(18.dp))
-                    Text(
-                        text = jar.balanceDisplay,
-                        color = Color.White,
-                        fontSize = 52.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.5).sp
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = stringResource(R.string.jar_bank_withdrawn_fmt, jar.withdrawnDisplay),
-                        color = JarCaptionMuted,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Normal
-                    )
-                }
+                Text(
+                    text = jar.name,
+                    color = Color.White,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .width(120.dp)
+                        .height(1.dp)
+                        .background(JarDividerLine)
+                )
+                Spacer(modifier = Modifier.height(18.dp))
+                Text(
+                    text = jar.balanceDisplay,
+                    color = Color.White,
+                    fontSize = 52.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.jar_bank_withdrawn_fmt, jar.withdrawnDisplay),
+                    color = JarCaptionMuted,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal
+                )
 
                 Spacer(modifier = Modifier.height(28.dp))
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 40.dp)
-                        .height(240.dp),
+                        .padding(horizontal = 20.dp)
+                        .height(280.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     JarHeroSquircleWithGraphic(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(220.dp)
+                            .height(270.dp)
                     )
                 }
 
@@ -240,48 +266,70 @@ internal fun JarBankDetailScreen(
 
                 Spacer(modifier = Modifier.height(36.dp))
 
-                JarStatisticsBlock(
-                    monoLogo = monoLogo,
-                    monoAmount = jar.statMonoDisplay,
-                    flagAmount = jar.statFlagDisplay,
-                    globeAmount = jar.statGlobeDisplay
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(JarStatsSectionBg)
+                        .padding(top = 26.dp, bottom = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    JarStatisticsBlock(
+                        monoLogo = monoLogo,
+                        monoAmount = jar.statMonoDisplay,
+                        flagAmount = jar.statFlagDisplay,
+                        globeAmount = jar.statGlobeDisplay
+                    )
 
-                Spacer(modifier = Modifier.height(22.dp))
+                    Spacer(modifier = Modifier.height(22.dp))
 
-                JarStatsMiniCardsRow()
+                    JarStatsMiniCardsRow()
 
-                Spacer(modifier = Modifier.height(28.dp))
+                    Spacer(modifier = Modifier.height(28.dp))
 
-                JarYourTopUpsSection(onCategoryClick = onOpenTopUpCategory)
-
-                Spacer(modifier = Modifier.height(32.dp))
+                    JarYourTopUpsSection(onCategoryClick = onOpenTopUpCategory)
+                }
             }
+        }
 
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 4.dp, top = 2.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = stringResource(R.string.jar_bank_back_cd),
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(start = 4.dp, top = 2.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                contentDescription = stringResource(R.string.jar_bank_back_cd),
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = sheetTop - 28.dp)
+                .size(56.dp)
+                .shadow(8.dp, CircleShape, ambientColor = Color.Black.copy(0.35f))
+                .clip(CircleShape)
+                .then(
+                    if (jarHeaderIcon == null) {
+                        Modifier.background(JarIconCircle)
+                    } else {
+                        Modifier
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (jarHeaderIcon != null) {
+                Image(
+                    bitmap = jarHeaderIcon,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
-            }
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .offset(y = darkSheetTopInset - 28.dp)
-                    .size(56.dp)
-                    .shadow(8.dp, CircleShape, ambientColor = Color.Black.copy(0.35f))
-                    .clip(CircleShape)
-                    .background(JarIconCircle),
-                contentAlignment = Alignment.Center
-            ) {
+            } else {
                 Icon(
                     imageVector = Icons.Outlined.Savings,
                     contentDescription = null,
@@ -293,36 +341,55 @@ internal fun JarBankDetailScreen(
     }
 }
 
-private fun Modifier.jarHeaderWatermarkPattern(): Modifier = drawWithContent {
-    drawContent()
-    val step = 34.dp.toPx()
-    val jarR = 3.2.dp.toPx()
-    val coinR = 2.4.dp.toPx()
-    var y = step * 0.35f
-    while (y < size.height + step) {
-        var x = -step * 0.2f
-        var row = 0
-        while (x < size.width + step) {
-            val ox = if (row % 2 == 0) 0f else step * 0.5f
-            drawCircle(
-                color = Color.White.copy(alpha = 0.06f),
-                radius = jarR,
-                center = Offset(x + ox, y)
-            )
-            drawCircle(
-                color = Color.White.copy(alpha = 0.045f),
-                radius = coinR,
-                center = Offset(x + ox + step * 0.22f, y + step * 0.18f)
-            )
-            x += step
-            row++
+@Composable
+private fun JarHeaderBackgroundPattern(modifier: Modifier = Modifier) {
+    val coinsBitmap = rememberFirstJarAssetBitmap(listOf(JarHeaderCoinsBgAsset))
+    val jarBitmap = rememberFirstJarAssetBitmap(listOf(JarHeaderJarBgAsset))
+    if (coinsBitmap == null || jarBitmap == null) return
+
+    BoxWithConstraints(modifier = modifier.clipToBounds()) {
+        val iconSize = 18.dp
+        val horizontalStep = 40.dp
+        val verticalStep = 40.dp
+        val columns = (maxWidth.value / horizontalStep.value).toInt() + 3
+        val rows = (maxHeight.value / verticalStep.value).toInt() + 3
+
+        for (row in 0 until rows) {
+            for (column in 0 until columns) {
+                val bitmap = if ((row + column) % 2 == 0) coinsBitmap else jarBitmap
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .offset(
+                            x = horizontalStep * column.toFloat() - 18.dp +
+                                if (row % 2 == 0) 0.dp else horizontalStep / 2,
+                            y = verticalStep * row.toFloat() - 22.dp
+                        )
+                        .size(iconSize)
+                        .graphicsLayer(
+                            rotationZ = -45f,
+                            alpha = 0.22f
+                        ),
+                    contentScale = ContentScale.Fit
+                )
+            }
         }
-        y += step * 0.55f
     }
 }
 
 @Composable
 private fun JarHeroSquircleWithGraphic(modifier: Modifier = Modifier) {
+    val mainJarBitmap = rememberFirstJarAssetBitmap(listOf(MainJarAsset))
+    if (mainJarBitmap != null) {
+        Image(
+            bitmap = mainJarBitmap,
+            contentDescription = null,
+            modifier = modifier,
+            contentScale = ContentScale.Fit
+        )
+        return
+    }
     val shape = RoundedCornerShape(38.dp)
     Box(
         modifier = modifier
@@ -411,7 +478,8 @@ private data class JarActionSpec(
     val labelRes: Int,
     val icon: ImageVector,
     val highlighted: Boolean,
-    val onClick: () -> Unit
+    val onClick: () -> Unit,
+    val assetPath: String? = null
 )
 
 @Composable
@@ -424,14 +492,14 @@ private fun JarActionRow(
     }
     val actions = remember(onShareJar) {
         listOf(
-            JarActionSpec(R.string.jar_action_share_bank, Icons.Outlined.Share, true, onShareJar),
-            JarActionSpec(R.string.jar_action_top_up, Icons.Outlined.FileDownload, false) {},
-            JarActionSpec(R.string.jar_action_deductions, Icons.Outlined.CreditCard, false) {},
-            JarActionSpec(R.string.jar_action_favorites, Icons.Outlined.StarOutline, false) {},
-            JarActionSpec(R.string.jar_action_statement, Icons.AutoMirrored.Outlined.ViewList, false) {},
-            JarActionSpec(R.string.jar_action_settings, Icons.Outlined.Settings, false) {},
-            JarActionSpec(R.string.jar_action_withdraw_jar, Icons.Outlined.South, false) {},
-            JarActionSpec(R.string.jar_action_break_jar, Icons.Outlined.Construction, false) {}
+            JarActionSpec(R.string.jar_action_share_bank, Icons.Outlined.Share, true, onShareJar, JarActionShareAsset),
+            JarActionSpec(R.string.jar_action_top_up, Icons.Outlined.FileDownload, false, {}, JarActionTopUpAsset),
+            JarActionSpec(R.string.jar_action_deductions, Icons.Outlined.CreditCard, false, {}, JarActionDeductionsAsset),
+            JarActionSpec(R.string.jar_action_favorites, Icons.Outlined.StarOutline, false, {}, JarActionFavoriteAsset),
+            JarActionSpec(R.string.jar_action_statement, Icons.AutoMirrored.Outlined.ViewList, false, {}, JarActionStatementAsset),
+            JarActionSpec(R.string.jar_action_settings, Icons.Outlined.Settings, false, {}, JarActionSettingsAsset),
+            JarActionSpec(R.string.jar_action_withdraw_jar, Icons.Outlined.South, false, {}, JarActionWithdrawAsset),
+            JarActionSpec(R.string.jar_action_break_jar, Icons.Outlined.Construction, false, {}, JarActionBreakAsset)
         )
     }
     LazyRow(
@@ -455,6 +523,7 @@ private fun JarActionCell(
     accentBrush: Brush,
     modifier: Modifier = Modifier
 ) {
+    val actionBitmap = rememberFirstJarAssetBitmap(spec.assetPath?.let(::listOf) ?: emptyList())
     Column(
         modifier = modifier.width(76.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -463,7 +532,13 @@ private fun JarActionCell(
             Modifier
                 .size(52.dp)
                 .clip(CircleShape)
-                .background(JarActionCircleBg)
+                .then(
+                    if (actionBitmap == null) {
+                        Modifier.background(JarActionCircleBg)
+                    } else {
+                        Modifier
+                    }
+                )
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -477,22 +552,12 @@ private fun JarActionCell(
                 contentAlignment = Alignment.Center
             ) {
                 Box(modifier = innerCircle, contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = spec.icon,
-                        contentDescription = null,
-                        tint = Color.White.copy(0.92f),
-                        modifier = Modifier.size(24.dp)
-                    )
+                    JarActionIcon(spec = spec, bitmap = actionBitmap)
                 }
             }
         } else {
             Box(modifier = innerCircle, contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = spec.icon,
-                    contentDescription = null,
-                    tint = Color.White.copy(0.92f),
-                    modifier = Modifier.size(24.dp)
-                )
+                JarActionIcon(spec = spec, bitmap = actionBitmap)
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
@@ -505,6 +570,28 @@ private fun JarActionCell(
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun JarActionIcon(
+    spec: JarActionSpec,
+    bitmap: ImageBitmap?
+) {
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Icon(
+            imageVector = spec.icon,
+            contentDescription = null,
+            tint = Color.White.copy(0.92f),
+            modifier = Modifier.size(24.dp)
         )
     }
 }
@@ -525,8 +612,8 @@ private fun JarStatisticsBlock(
         Text(
             text = stringResource(R.string.jar_stats_title),
             color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(14.dp))
         Row(
@@ -794,7 +881,8 @@ private fun JarStatMono(amount: String, monoLogo: ImageBitmap?) {
                 Image(
                     bitmap = monoLogo,
                     contentDescription = null,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
             } else {
                 Text(
@@ -816,25 +904,35 @@ private fun JarStatMono(amount: String, monoLogo: ImageBitmap?) {
 
 @Composable
 private fun JarStatFlag(amount: String) {
+    val flagBitmap = rememberFirstJarAssetBitmap(listOf(JarStatFlagAsset))
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(
-            modifier = Modifier
-                .width(26.dp)
-                .height(18.dp)
-                .clip(RoundedCornerShape(3.dp))
-        ) {
+        if (flagBitmap != null) {
+            Image(
+                bitmap = flagBitmap,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                contentScale = ContentScale.Fit
+            )
+        } else {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFF005BBB))
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(9.dp)
-                    .align(Alignment.BottomCenter)
-                    .background(Color(0xFFFFD500))
-            )
+                    .width(26.dp)
+                    .height(18.dp)
+                    .clip(RoundedCornerShape(3.dp))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFF005BBB))
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(9.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(Color(0xFFFFD500))
+                )
+            }
         }
         Text(
             text = amount,
@@ -847,13 +945,23 @@ private fun JarStatFlag(amount: String) {
 
 @Composable
 private fun JarStatGlobe(amount: String) {
+    val earthBitmap = rememberFirstJarAssetBitmap(listOf(JarStatEarthAsset))
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(
-            imageVector = Icons.Outlined.Language,
-            contentDescription = null,
-            tint = Color.White.copy(0.85f),
-            modifier = Modifier.size(22.dp)
-        )
+        if (earthBitmap != null) {
+            Image(
+                bitmap = earthBitmap,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                contentScale = ContentScale.Fit
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Outlined.Language,
+                contentDescription = null,
+                tint = Color.White.copy(0.85f),
+                modifier = Modifier.size(22.dp)
+            )
+        }
         Text(
             text = amount,
             color = Color.White,

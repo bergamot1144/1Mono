@@ -80,6 +80,9 @@
 
     <!-- Екран Накопичення (референс monobank) -->
     <string name="savings_header_title">Накопичення в гривнях</string>
+    <string name="savings_header_title_uah">Накопичення в гривнях</string>
+    <string name="savings_header_title_usd">Накопичення в доларах</string>
+    <string name="savings_header_title_eur">Накопичення в євро</string>
     <string name="savings_header_balance">6.67 ₴</string>
     <string name="savings_info_cd">Інформація</string>
     <string name="savings_action_deposit">Відкрити депозит</string>
@@ -98,7 +101,7 @@
     <string name="jar_bank_withdrawn">Знято 51 922.58 ₴</string>
     <string name="jar_action_share_bank">Поділитися банкою</string>
     <string name="jar_action_top_up">Поповнити банку</string>
-    <string name="jar_action_deductions">Змінити відрахування</string>
+    <string name="jar_action_deductions">Підключити відрахування</string>
     <string name="jar_action_favorites">Додати в обране</string>
     <string name="jar_action_statement">Переглянути виписку</string>
     <string name="jar_action_settings">Налаштування банки</string>
@@ -151,7 +154,7 @@
     <string name="jar_txn_amt_1200">12.00 ₴</string>
 
     <!-- Деталі однієї транзакції (monobank) -->
-    <string name="jar_detail_from_sender">Від: 🐈</string>
+    <string name="jar_detail_from_sender">Від:</string>
     <string name="jar_detail_badge_link">За посиланням</string>
     <string name="jar_detail_balance_label">Залишок</string>
     <string name="jar_detail_ask_question">Поставити запитання</string>
@@ -193,11 +196,35 @@
 
     <!-- Адмін-панель (налаштування застосунку) -->
     <string name="admin_title">Адмінка</string>
-    <string name="admin_field_name_main">Імʼя (головний екран)</string>
+    <string name="admin_field_name_main">Імʼя (пін-код)</string>
     <string name="admin_field_name_account">Імʼя та прізвище (обліковий запис)</string>
     <string name="admin_field_balance_main">Баланс чорної картки (загальний)</string>
     <string name="admin_field_balance_wallet">Баланс чорної картки (особисті)</string>
     <string name="admin_field_balance_credit">Баланс чорної картки (кредитні)</string>
+    <string name="admin_configure_card_1">Налаштування картки №1</string>
+    <string name="admin_configure_card_2">Налаштування картки №2</string>
+    <string name="admin_configure_card_3">Налаштування картки №3</string>
+    <string name="admin_configure_card_4">Налаштування картки №4</string>
+    <string name="admin_configure_card">Налаштувати картку №%1$d</string>
+    <string name="admin_card_title">Картка №%1$d</string>
+    <string name="admin_card_field_name">Назва картки</string>
+    <string name="admin_card_field_balance">Баланс картки (відображення)</string>
+    <string name="admin_card_field_number">Номер картки</string>
+    <string name="admin_card_operations_title">Операції картки</string>
+    <string name="admin_card_operations_open">Змінити операції</string>
+    <string name="admin_card_operation_block">Операція %1$d</string>
+    <string name="admin_card_operation_name">Операція %1$d: назва</string>
+    <string name="admin_card_operation_amount">Операція %1$d: сума</string>
+    <string name="admin_card_operation_date">Операція %1$d: дата</string>
+    <string name="admin_card_operation_has_commission">Додати комісію</string>
+    <string name="admin_card_operation_commission">Операція %1$d: комісія</string>
+    <string name="admin_card_operation_delete">Видалити операцію</string>
+    <string name="admin_card_operation_add">Додати операцію</string>
+    <string name="admin_card_operation_default_title">Нова операція</string>
+    <string name="admin_card_operation_default_amount">-0 ₴</string>
+    <string name="admin_card_operation_default_date">Сьогодні</string>
+    <string name="home_operations_all_sheet_title">Усі операції</string>
+    <string name="home_operation_commission">Комісія %1$s</string>
     <string name="admin_save">Зберегти</string>
     <string name="admin_configure_jar">Налаштувати банку №%1$d</string>
     <string name="admin_jar_title">Банка №%1$d</string>

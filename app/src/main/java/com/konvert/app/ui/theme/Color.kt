@@ -3,9 +3,11 @@ package com.konvert.app.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /** Екран блокування */
-val Background = Color(0xFF101010)
+val Background = Color(0xFF1D1D1D)
 /** Круги клавіатури */
 val KeypadButton = Color(0xFF1E1E1E)
+val PinKeypadButton = Color(0xFF353535)
+val PinKeypadButtonPressed = Color(0xFF3A3A3A)
 /** Основний текст (клавіатура, посилання тощо) */
 val TextPrimary = Color(0xFFF3F3F3)
 /** «З поверненням, …» */
@@ -20,7 +22,7 @@ val PinDotEmpty = Color(0xFF3B3B3D)
 /** Заповнена крапка під час вводу PIN */
 val PinDotFilled = Color(0xFFFF4D57)
 /** Круг клавіші Backspace на PIN-екрані */
-val PinBackspaceCircleFill = Color(0xFF151515)
+val PinBackspaceCircleFill = Background
 val PinBackspaceCirclePressed = Color(0xFF242424)
 val ErrorTint = Color(0xFFFF453A)
 
@@ -29,6 +31,7 @@ val SurfaceKey = KeypadButton
 
 /** Акцент навігації / активні елементи */
 val AccentRed = PinDotFilled
+val HomeNavIconActive = Color(0xFFFD8688)
 
 /** Градієнт рамки блоку «Ліміти» */
 val LimitsGradientStart = Color(0xFF8B5CF6)

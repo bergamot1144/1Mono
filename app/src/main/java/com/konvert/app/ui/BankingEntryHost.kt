@@ -55,6 +55,8 @@ import com.konvert.app.admin.AppAdminController
 import com.konvert.app.admin.LocalAppAdmin
 
 import com.konvert.app.ui.admin.AdminMainPanel
+import com.konvert.app.ui.admin.CardAdminPanel
+import com.konvert.app.ui.admin.CardOperationsAdminPanel
 
 import com.konvert.app.ui.admin.JarAdminPanel
 
@@ -83,6 +85,9 @@ private sealed class AdminOverlayRoute {
     data object Hidden : AdminOverlayRoute()
 
     data object Main : AdminOverlayRoute()
+
+    data class Card(val index: Int) : AdminOverlayRoute()
+    data class CardOperations(val index: Int) : AdminOverlayRoute()
 
     data class Jar(val index: Int) : AdminOverlayRoute()
 
@@ -138,9 +143,11 @@ fun BankingEntryHost() {
 
                 BackHandler {
 
-                    adminRoute = when (adminRoute) {
+                    adminRoute = when (val route = adminRoute) {
 
                         is AdminOverlayRoute.Jar -> AdminOverlayRoute.Main
+                        is AdminOverlayRoute.Card -> AdminOverlayRoute.Main
+                        is AdminOverlayRoute.CardOperations -> AdminOverlayRoute.Card(route.index)
 
                         AdminOverlayRoute.Main -> AdminOverlayRoute.Hidden
 
@@ -159,6 +166,32 @@ fun BankingEntryHost() {
                         onBack = { adminRoute = AdminOverlayRoute.Hidden },
 
                         onOpenJarSettings = { adminRoute = AdminOverlayRoute.Jar(it) },
+                        onOpenCardSettings = { adminRoute = AdminOverlayRoute.Card(it) },
+
+                        modifier = Modifier.fillMaxSize()
+
+                    )
+
+                    is AdminOverlayRoute.Card -> CardAdminPanel(
+
+                        controller = adminController,
+
+                        cardIndex = route.index,
+
+                        onBack = { adminRoute = AdminOverlayRoute.Main },
+                        onOpenOperationsSettings = { adminRoute = AdminOverlayRoute.CardOperations(it) },
+
+                        modifier = Modifier.fillMaxSize()
+
+                    )
+
+                    is AdminOverlayRoute.CardOperations -> CardOperationsAdminPanel(
+
+                        controller = adminController,
+
+                        cardIndex = route.index,
+
+                        onBack = { adminRoute = AdminOverlayRoute.Card(route.index) },
 
                         modifier = Modifier.fillMaxSize()
 

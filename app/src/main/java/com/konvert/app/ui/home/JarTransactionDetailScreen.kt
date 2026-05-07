@@ -1,5 +1,7 @@
 package com.konvert.app.ui.home
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -36,11 +38,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -55,6 +60,19 @@ private val JarTxnDetailMuted = Color(0xFF8E8E93)
 private val JarTxnDetailIconGradStart = Color(0xFF4A7FE8)
 private val JarTxnDetailIconGradEnd = Color(0xFF9B6DFF)
 private val JarTxnDetailWalletCircle = Color(0xFF8B6BFF)
+private const val JarTxnCatTransferAsset = "operations_logos/cat_transfer.png"
+
+@Composable
+private fun rememberJarTransactionAssetBitmap(assetPath: String): ImageBitmap? {
+    val context = LocalContext.current
+    return remember(assetPath) {
+        runCatching {
+            context.assets.open(assetPath).use { input ->
+                BitmapFactory.decodeStream(input)?.asImageBitmap()
+            }
+        }.getOrNull()
+    }
+}
 
 @Composable
 internal fun JarTransactionDetailScreen(
@@ -63,6 +81,7 @@ internal fun JarTransactionDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val scroll = rememberScrollState()
+    val catTransferBitmap = rememberJarTransactionAssetBitmap(JarTxnCatTransferAsset)
     val headerBlue = JarTxnDetailHeaderBlue
     val pinkH = 210.dp
     val sheetInset = 78.dp
@@ -110,14 +129,28 @@ internal fun JarTransactionDetailScreen(
                     .background(JarTxnDetailBg)
             ) {
                 Spacer(modifier = Modifier.height(44.dp))
-                Text(
-                    text = stringResource(payload.fromRes),
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(payload.fromRes),
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    if (catTransferBitmap != null) {
+                        Image(
+                            bitmap = catTransferBitmap,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.height(14.dp))
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text(
