@@ -259,6 +259,8 @@ private val HomeCardCarouselLayoutReserveHeight = 230.dp
 
 /** Висота слота під [HomeCardPlaceholder] — під вищу/ширшу пластину в [HomeMonoTiltedCard]. */
 private val HomeCardCarouselPagerVisualHeight = 240.dp
+private val HomeCardCarouselMistTopOffset = 138.dp
+private val HomeCardCarouselMistHeight = 150.dp
 
 /**
  * Вертикаль пластики на головному екрані (наклон «від користувача»):
@@ -317,6 +319,9 @@ private val HomeUsefulTilesRowSpacing = 16.dp
 /** Зазор між двома плитками в одному ряду. */
 private val HomeUsefulTilesHorizontalSpacing = 18.dp
 private val HomeQuickActionIconSize = 22.dp
+private const val HomeTopAssetIconScaleY = 1.12f
+private const val HomeTopProfileMessageScale = 1.22f
+private const val HomeTopStatsScale = 1.36f
 
 /** Колір великого балансу [R.string.home_balance_main] — кешбек у топ-барі та сусідні іконки. */
 private val HomeBalanceMainAmountColor = Color(0xFFFFFFFF)
@@ -353,6 +358,7 @@ private const val CardAddDebitNegateAsset = "$OperationsLogosPath/add_debit_card
 /** Іконка чипа «Усі картки» під каруселлю. */
 private const val HomeAllCardsChipIconAsset = "$OperationsLogosPath/card_negate.png"
 
+private const val HomeStatsAsset = "$OperationsLogosPath/stats.png"
 private const val HomeGraphNegateAsset = "graph_negate.png"
 private const val HomeGraphNegateInOperationsLogos = "$OperationsLogosPath/graph_negate.png"
 private const val HomeCatIconAsset = "$OperationsLogosPath/cat_icon.png"
@@ -943,15 +949,16 @@ internal fun HomeCardsTabDashboard(
                         .fillMaxWidth()
                         .onSizeChanged { onPagerSectionHeightPx(it.height.toFloat()) }
                 ) {
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = HomeCardsPagerHorizontalPeek),
-                        pageSpacing = HomeCardsPagerPageSpacing,
-                        verticalAlignment = Alignment.Top,
-                        beyondBoundsPageCount = 1,
-                        flingBehavior = pagerFling
-                    ) { page ->
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = HomeCardsPagerHorizontalPeek),
+                            pageSpacing = HomeCardsPagerPageSpacing,
+                            verticalAlignment = Alignment.Top,
+                            beyondBoundsPageCount = 1,
+                            flingBehavior = pagerFling
+                        ) { page ->
                         val kind = HomeCarouselCardKind.entries[page]
                         Column(
                             modifier = Modifier
@@ -1033,6 +1040,14 @@ internal fun HomeCardsTabDashboard(
                                 }
                             }
                         }
+                        }
+                        HomeCardCarouselMistOverlay(
+                            cardScrollPosition = pagerState.currentPage + pagerState.currentPageOffsetFraction,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(HomeCardCarouselMistHeight)
+                                .offset(y = HomeCardCarouselMistTopOffset)
+                        )
                     }
                     Column(
                         modifier = Modifier
@@ -1062,6 +1077,37 @@ internal suspend fun PagerState.animateHomeCardPageSpring(targetPage: Int) {
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioLowBouncy,
             stiffness = Spring.StiffnessLow
+        )
+    )
+}
+
+@Composable
+private fun HomeCardCarouselMistOverlay(
+    cardScrollPosition: Float,
+    modifier: Modifier = Modifier
+) {
+    val paletteN = HomeCardsCarouselPageCount.coerceIn(1, HomeBgContentScrollPalettes.size)
+    val maxSlot = (paletteN - 1).coerceAtLeast(0).toFloat()
+    val seg = cardScrollPosition.coerceIn(0f, maxSlot)
+    val i = floor(seg).toInt().coerceIn(0, paletteN - 1)
+    val next = (i + 1).coerceAtMost(paletteN - 1)
+    val tLocal = if (next == i) 0f else (seg - i).coerceIn(0f, 1f)
+    val stops = lerpColorStops(HomeBgContentScrollPalettes[i], HomeBgContentScrollPalettes[next], tLocal)
+    val mistTop = colorAlongStops(stops, 0.30f)
+    val mistCenter = colorAlongStops(stops, 0.40f)
+    val mistBottom = colorAlongStops(stops, 0.52f)
+    Box(
+        modifier = modifier.background(
+            Brush.verticalGradient(
+                colorStops = arrayOf(
+                    0f to Color.Transparent,
+                    0.22f to mistTop.copy(alpha = 0.18f),
+                    0.42f to mistCenter.copy(alpha = 0.54f),
+                    0.58f to mistCenter.copy(alpha = 0.48f),
+                    0.76f to mistBottom.copy(alpha = 0.16f),
+                    1f to Color.Transparent
+                )
+            )
         )
     )
 }
@@ -1418,9 +1464,7 @@ private fun HomeProfileMenuThinDivider() {
 private fun HomeTopBar(onProfileClick: () -> Unit) {
     val admin = LocalAppAdmin.current
     val profileAvatar = rememberProfileAvatarBitmap(admin?.state?.profileAvatarPath)
-    val graphNegateRoot = rememberAssetImageBitmap(HomeGraphNegateAsset)
-    val graphNegateOps = rememberAssetImageBitmap(HomeGraphNegateInOperationsLogos)
-    val graphNegateBitmap = graphNegateRoot ?: graphNegateOps
+    val statsBitmap = rememberAssetImageBitmap(HomeStatsAsset)
     val profileMessageBitmap = rememberAssetImageBitmap(HomeProfileMessageAsset)
     val catIconBitmap = rememberAssetImageBitmap(HomeCatIconAsset)
     val chartsCd = stringResource(R.string.home_charts_cd)
@@ -1466,7 +1510,7 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
             Spacer(modifier = Modifier.width(8.dp))
             Box(
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -1478,15 +1522,20 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
                     Image(
                         bitmap = profileMessageBitmap,
                         contentDescription = stringResource(R.string.home_chat_cd),
-                        modifier = Modifier.size(23.dp),
-                        contentScale = ContentScale.Fit
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = HomeTopProfileMessageScale,
+                                scaleY = HomeTopProfileMessageScale * HomeTopAssetIconScaleY
+                            ),
+                        contentScale = ContentScale.Crop
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Outlined.ChatBubbleOutline,
                         contentDescription = stringResource(R.string.home_chat_cd),
                         tint = HomeBalanceMainAmountColor,
-                        modifier = Modifier.size(23.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
@@ -1508,9 +1557,9 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
                     ) { }
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                HomeCashbackGiftIcon(modifier = Modifier.size(22.dp))
+                HomeCashbackGiftIcon(modifier = Modifier.size(19.dp))
                 Text(
                     text = bonusAmountText,
                     color = HomeBalanceMainAmountColor,
@@ -1538,11 +1587,14 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
                     Image(
                         bitmap = catIconBitmap,
                         contentDescription = null,
-                        modifier = Modifier.size(width = 40.dp, height = 27.dp),
+                        modifier = Modifier
+                            .size(width = 40.dp, height = 27.dp)
+                            .graphicsLayer(scaleY = HomeTopAssetIconScaleY),
                         contentScale = ContentScale.Fit
                     )
                 }
             }
+            Spacer(modifier = Modifier.width(4.dp))
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -1553,13 +1605,17 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
                     ) { },
                 contentAlignment = Alignment.Center
             ) {
-                if (graphNegateBitmap != null) {
+                if (statsBitmap != null) {
                     Image(
-                        bitmap = graphNegateBitmap,
+                        bitmap = statsBitmap,
                         contentDescription = chartsCd,
-                        modifier = Modifier.size(24.dp),
-                        contentScale = ContentScale.Fit,
-                        colorFilter = ColorFilter.tint(HomeBalanceMainAmountColor)
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = HomeTopStatsScale,
+                                scaleY = HomeTopStatsScale * HomeTopAssetIconScaleY
+                            ),
+                        contentScale = ContentScale.Crop
                     )
                 } else {
                     Icon(
@@ -3115,7 +3171,7 @@ private fun HomeCashbackGiftIcon(modifier: Modifier = Modifier) {
     Image(
         painter = painterResource(R.drawable.gift),
         contentDescription = null,
-        modifier = modifier,
+        modifier = modifier.graphicsLayer(scaleY = HomeTopAssetIconScaleY),
         contentScale = ContentScale.Fit,
         colorFilter = ColorFilter.tint(HomeBalanceMainAmountColor)
     )
