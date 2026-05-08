@@ -1,24 +1,40 @@
 package com.konvert.app.ui.admin
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -27,6 +43,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,16 +54,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.konvert.app.R
 import com.konvert.app.admin.AppAdminController
 import com.konvert.app.admin.CardAdminConfig
 import com.konvert.app.admin.CardOperationAdminConfig
 import com.konvert.app.admin.JarAdminConfig
+import java.io.File
+import java.io.FileOutputStream
+import kotlin.math.max
 
 private val AdminBg = Color(0xFF1C1C1C)
 private val AdminBorder = Color(0xFF444444)
@@ -53,6 +85,8 @@ private val AdminFieldBg = Color(0xFF2A2A2A)
 private val AdminBlue = Color(0xFF007BFF)
 private val AdminGreen = Color(0xFF0A8433)
 private val AdminLabel = Color(0xFFAEAEB2)
+private val AdminCardBg = Color(0xFF242424)
+private val AdminAvatarCircleBg = Color(0xFF333333)
 
 @Composable
 fun AdminMainPanel(
@@ -108,6 +142,10 @@ fun AdminMainPanel(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
+            AdminAvatarPicker(
+                avatarPath = controller.state.profileAvatarPath,
+                onAvatarSaved = controller::updateProfileAvatar
+            )
             AdminLabeledField(
                 label = stringResource(R.string.admin_field_name_main),
                 value = mainFirst,
@@ -682,6 +720,268 @@ fun JarAdminPanel(
             }
         }
     }
+}
+
+@Composable
+private fun AdminAvatarPicker(
+    avatarPath: String?,
+    onAvatarSaved: (String) -> Unit
+) {
+    var cropUri by remember { mutableStateOf<Uri?>(null) }
+    val avatarBitmap = rememberAdminAvatarBitmap(avatarPath)
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        cropUri = uri
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = AdminCardBg
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(AdminAvatarCircleBg),
+                contentAlignment = Alignment.Center
+            ) {
+                if (avatarBitmap != null) {
+                    Image(
+                        bitmap = avatarBitmap,
+                        contentDescription = stringResource(R.string.admin_avatar_cd),
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Person,
+                        contentDescription = stringResource(R.string.admin_avatar_cd),
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.admin_avatar_title),
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { picker.launch(arrayOf("image/*")) },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AdminBlue)
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (avatarBitmap == null) R.string.admin_avatar_pick else R.string.admin_avatar_change
+                        ),
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+
+    cropUri?.let { uri ->
+        AdminAvatarCropDialog(
+            sourceUri = uri,
+            onDismiss = { cropUri = null },
+            onAvatarSaved = { path ->
+                onAvatarSaved(path)
+                cropUri = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun AdminAvatarCropDialog(
+    sourceUri: Uri,
+    onDismiss: () -> Unit,
+    onAvatarSaved: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val sourceBitmap = remember(sourceUri) { loadBitmapFromUri(context, sourceUri) }
+    var scale by remember(sourceUri) { mutableStateOf(1f) }
+    var offset by remember(sourceUri) { mutableStateOf(Offset.Zero) }
+    var cropSizePx by remember(sourceUri) { mutableStateOf(0f) }
+    val fallbackCropSizePx = with(density) { 280.dp.toPx() }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = AdminBg,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.admin_avatar_crop_title),
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.admin_avatar_crop_hint),
+                    color = AdminLabel,
+                    fontSize = 13.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (sourceBitmap != null) {
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .clip(CircleShape)
+                            .background(Color.Black)
+                            .onSizeChanged { cropSizePx = it.width.toFloat() }
+                            .pointerInput(sourceBitmap, scale) {
+                                detectDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    offset += dragAmount
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            bitmap = sourceBitmap.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    scaleX = scale
+                                    scaleY = scale
+                                    translationX = offset.x
+                                    translationY = offset.y
+                                },
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = stringResource(R.string.admin_avatar_crop_zoom),
+                        color = AdminLabel,
+                        fontSize = 13.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Slider(
+                        value = scale,
+                        onValueChange = { scale = it },
+                        valueRange = 1f..3f,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AdminFieldBg)
+                        ) {
+                            Text(stringResource(R.string.admin_avatar_crop_cancel), color = Color.White)
+                        }
+                        Button(
+                            onClick = {
+                                saveCroppedAvatar(
+                                    context = context,
+                                    source = sourceBitmap,
+                                    cropSizePx = if (cropSizePx > 0f) cropSizePx else fallbackCropSizePx,
+                                    scale = scale,
+                                    offset = offset
+                                )?.let(onAvatarSaved)
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AdminGreen)
+                        ) {
+                            Text(
+                                stringResource(R.string.admin_avatar_crop_save),
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = stringResource(R.string.admin_avatar_crop_cancel),
+                        color = Color.White,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onDismiss)
+                            .padding(14.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun rememberAdminAvatarBitmap(path: String?): ImageBitmap? {
+    return remember(path) {
+        path
+            ?.takeIf { it.isNotBlank() && File(it).exists() }
+            ?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() }
+    }
+}
+
+private fun loadBitmapFromUri(context: Context, uri: Uri): Bitmap? {
+    return runCatching {
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            BitmapFactory.decodeStream(input)
+        }
+    }.getOrNull()
+}
+
+private fun saveCroppedAvatar(
+    context: Context,
+    source: Bitmap,
+    cropSizePx: Float,
+    scale: Float,
+    offset: Offset
+): String? {
+    val outputSize = 512
+    val baseScale = max(cropSizePx / source.width.toFloat(), cropSizePx / source.height.toFloat()) * scale
+    val sourceCropSize = cropSizePx / baseScale
+    val imageLeft = (cropSizePx - source.width * baseScale) / 2f + offset.x
+    val imageTop = (cropSizePx - source.height * baseScale) / 2f + offset.y
+    val left = ((-imageLeft) / baseScale)
+        .coerceIn(0f, (source.width - sourceCropSize).coerceAtLeast(0f))
+    val top = ((-imageTop) / baseScale)
+        .coerceIn(0f, (source.height - sourceCropSize).coerceAtLeast(0f))
+    val right = (left + sourceCropSize).coerceAtMost(source.width.toFloat())
+    val bottom = (top + sourceCropSize).coerceAtMost(source.height.toFloat())
+    val src = Rect(left.toInt(), top.toInt(), right.toInt(), bottom.toInt())
+    val output = Bitmap.createBitmap(outputSize, outputSize, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(output)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    canvas.drawBitmap(source, src, Rect(0, 0, outputSize, outputSize), paint)
+    return runCatching {
+        val file = File(context.filesDir, "profile_avatar.png")
+        FileOutputStream(file).use { output.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        output.recycle()
+        file.absolutePath
+    }.getOrNull()
 }
 
 @Composable

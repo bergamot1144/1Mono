@@ -196,6 +196,15 @@
 
     <!-- Адмін-панель (налаштування застосунку) -->
     <string name="admin_title">Адмінка</string>
+    <string name="admin_avatar_title">Аватар профілю</string>
+    <string name="admin_avatar_pick">Обрати фото</string>
+    <string name="admin_avatar_change">Змінити фото</string>
+    <string name="admin_avatar_crop_title">Обрізати аватар</string>
+    <string name="admin_avatar_crop_hint">Перетягніть фото і налаштуйте масштаб</string>
+    <string name="admin_avatar_crop_zoom">Масштаб</string>
+    <string name="admin_avatar_crop_cancel">Скасувати</string>
+    <string name="admin_avatar_crop_save">Зберегти</string>
+    <string name="admin_avatar_cd">Поточний аватар</string>
     <string name="admin_field_name_main">Імʼя (пін-код)</string>
     <string name="admin_field_name_account">Імʼя та прізвище (обліковий запис)</string>
     <string name="admin_field_balance_main">Баланс чорної картки (загальний)</string>

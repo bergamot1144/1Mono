@@ -150,8 +150,8 @@ internal val HomeBankCardFaceColorsBlack = HomeBankCardFaceColors(
 
 /** Біле лице, товщина / ребро — чорні. */
 private val HomeBankCardFaceColorsWhiteBlackEdge = HomeBankCardFaceColors(
-    volumeBackTop = Color(0xFF0A0A0A),
-    volumeBackBottom = Color(0xFF050505),
+    volumeBackTop = Color(0xFF515053),
+    volumeBackBottom = Color(0xFF515053),
     faceColorStart = Color(0xFFF8F8FA),
     faceColorCenter = Color(0xFFECECF1),
     faceColorEnd = Color(0xFFE0E0E8),
@@ -165,8 +165,8 @@ private val HomeBankCardFaceColorsWhiteBlackEdge = HomeBankCardFaceColors(
 
 /** Як чорна базова, ребро — зелене (доларова). */
 private val HomeBankCardFaceColorsBlackGreenEdge = HomeBankCardFaceColorsBlack.copy(
-    volumeBackTop = Color(0xFFF86369),
-    volumeBackBottom = Color(0xFFF86369),
+    volumeBackTop = Color(0xFF11BF77),
+    volumeBackBottom = Color(0xFF11BF77),
     stripBlue = Color(0xFF1A5868).copy(alpha = 0.07f),
     hazeBlueOuter = Color(0xFF0D5E6E).copy(alpha = 0.08f),
     hazeBlueMid = Color(0xFF063E48).copy(alpha = 0.042f)
@@ -174,8 +174,8 @@ private val HomeBankCardFaceColorsBlackGreenEdge = HomeBankCardFaceColorsBlack.c
 
 /** Як чорна базова, ребро — червоне (єврова). */
 private val HomeBankCardFaceColorsBlackRedEdge = HomeBankCardFaceColorsBlack.copy(
-    volumeBackTop = Color(0xFF11BF77),
-    volumeBackBottom = Color(0xFF11BF77),
+    volumeBackTop = Color(0xFFF86369),
+    volumeBackBottom = Color(0xFFF86369),
     stripBlue = Color(0xFF603040).copy(alpha = 0.068f),
     hazeBlueOuter = Color(0xFF682038).copy(alpha = 0.075f),
     hazeBlueMid = Color(0xFF401424).copy(alpha = 0.04f)

@@ -41,6 +41,7 @@ data class CardAdminConfig(
 data class AppAdminState(
     val mainFirstName: String = "Андрій",
     val accountFullName: String = "Андрій Коваленко",
+    val profileAvatarPath: String? = null,
     val balanceMain: String = "102 144 ₴",
     val balanceWallet: String = "2 144 ₴",
     val balanceCredit: String = "100 000 ₴",
@@ -120,6 +121,10 @@ class AppAdminController(initial: AppAdminState = AppAdminState()) {
             balanceWallet = balanceWallet,
             balanceCredit = balanceCredit
         )
+    }
+
+    fun updateProfileAvatar(path: String?) {
+        state = state.copy(profileAvatarPath = path)
     }
 
     fun updateJar(index: Int, jar: JarAdminConfig) {

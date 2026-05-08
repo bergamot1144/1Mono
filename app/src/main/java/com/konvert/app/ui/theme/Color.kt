@@ -73,7 +73,7 @@ val HomeBottomBarFill = Color(0xFF2D2D2D)
 val HomeBottomBarBorder = Color(0xFF404040)
 
 /** Текст / стан неактивних пунктів нижньої навігації */
-val HomeNavIconInactive = Color(0xFFA9A9A9)
+val HomeNavIconInactive = Color(0xFFC9C9C9)
 
 /** Картка «Корисне» */
 val HomeUsefulCardColor = Color(0xFF252525)

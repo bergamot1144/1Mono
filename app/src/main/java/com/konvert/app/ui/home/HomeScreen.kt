@@ -4,15 +4,22 @@ import android.graphics.BitmapFactory
 import android.graphics.Typeface
 import kotlin.math.abs
 import kotlin.math.floor
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +32,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -73,6 +81,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -90,7 +99,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -106,7 +115,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -121,6 +132,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.res.ResourcesCompat
 import com.konvert.app.R
@@ -176,7 +188,7 @@ private val BottomBarPillRadius = 36.dp
 private val BottomBarGap = 4.dp
 
 /** Lottie в меню; статична іконка «Маркет» трохи менша. */
-private val BottomBarNavLottieIconSize = 36.dp
+private val BottomBarNavLottieIconSize = 40.dp
 private val BottomBarNavStaticIconSize = 28.dp
 
 /** Відступ підпису від нижнього краю комірки (малий — текст ближче до іконки). */
@@ -198,7 +210,8 @@ private val BottomBarNavLabelFontFamily = FontFamily(
 private val HomeBottomBarRowVerticalPadding = 16.dp
 
 /** Додатковий зазор між верхом плаваючої панелі й останнім блоком після повного скролу. */
-private val HomeCardsListBottomGapBeyondBar = 38.dp
+private val HomeCardsListBottomGapBeyondBar = 8.dp
+private val HomeCardsListBottomTailTrim = 48.dp
 
 /** Відступ під топ-баром перед блоком балансу (не між балансом і картою). */
 private val HomeTopBarToBalancePaddingDp = 44.dp
@@ -222,26 +235,30 @@ private val HomeCardsPlateNeighborExtraPull = 54.dp
 private val HomeSectionGapBalanceToCard = 48.dp
 
 /** Зовнішній блок навколо пунктів «Особисті дані…» / «Налаштування…». */
-private val HomeProfileMenuOuterBlockColor = Color(0xFF272727)
+private val HomeProfileMenuOuterBlockColor = Color(0xFF303030)
 /** Фон рядків усередині цього блоку. */
-private val HomeProfileMenuSettingsRowsColor = Color(0xFF333333)
-private val HomeProfileMenuCardColor = Color(0xFF1C1C1E)
+private val HomeProfileMenuSettingsRowsColor = Color(0xFF323232)
+private val HomeProfileMenuCardColor = Color(0xFF323232)
 private val HomeProfileMenuIconCircleBg = Color(0xFF2C3E50)
 private val HomeProfileMenuDivider = Color.White.copy(alpha = 0.10f)
 private val HomeProfileMenuSubtitle = Color(0xFF8E8E93)
-private val HomeProfileCheckBg = Color(0xFF2DD4BF)
-private val HomeProfileDetailsGradientStart = Color(0xFFA78BFA)
-private val HomeProfileDetailsGradientEnd = Color(0xFFEC4899)
+private val HomeProfileMenuText = Color(0xFFE6E6E6)
+private val HomeProfileMenuRowHighlight = Color(0xFF373737)
+private val HomeProfileCheckBg = Color(0xFF8CF4DC)
+private val HomeProfileCheckTint = Color(0xFF0B6F63)
+private val HomeProfileDetailsButtonBg = Color(0xFF212121)
+private val HomeProfileDetailsGradientStart = Color(0xFF776ECA)
+private val HomeProfileDetailsGradientEnd = Color(0xFFBD5AAC)
 private val HomeProfileMenuSheetShape = RoundedCornerShape(18.dp)
 
 /**
  * Висота, яку займає блок каруселі в [LazyColumn] — мала, щоб «Усі картки» та нижній контент піднялись.
  * Має бути достатньою під вищу пластину [HomeBankCardFrame] + нахил.
  */
-private val HomeCardCarouselLayoutReserveHeight = 198.dp
+private val HomeCardCarouselLayoutReserveHeight = 230.dp
 
 /** Висота слота під [HomeCardPlaceholder] — під вищу/ширшу пластину в [HomeMonoTiltedCard]. */
-private val HomeCardCarouselPagerVisualHeight = 226.dp
+private val HomeCardCarouselPagerVisualHeight = 240.dp
 
 /**
  * Вертикаль пластики на головному екрані (наклон «від користувача»):
@@ -249,7 +266,7 @@ private val HomeCardCarouselPagerVisualHeight = 226.dp
  * - [HomeCardCarouselPlateNudgeY] — тонке доналаштування вгору/вниз без перерахунку px;
  * - у [HomeCardPlaceholder]: `rotX` (кут нахилу), `cardTransY` (translationY у [HomeMonoTiltedCard], більше — нижче на екрані).
  */
-private val HomeCardPlateOffsetY = (-30).dp
+private val HomeCardPlateOffsetY = (-40).dp
 
 /** Додатково підняти пластину (px → dp разом із [HomeCardPlateOffsetY]). */
 private const val HomeCardPlateExtraLiftPx: Float = 56f
@@ -294,11 +311,12 @@ private val HomeSectionGapLimitsToUseful = 88.dp
 private val HomeSectionCompactBelowOperationsDp = 72.dp
 
 /** У «Корисне»: однаковий горизонтальний inset для ряду курсів і сітки плиток. */
-private val HomeUsefulInnerHorizontalPadding = 10.dp
+private val HomeUsefulInnerHorizontalPadding = 0.dp
 /** Зазор між двома рядами плиток 2×2. */
 private val HomeUsefulTilesRowSpacing = 16.dp
 /** Зазор між двома плитками в одному ряду. */
 private val HomeUsefulTilesHorizontalSpacing = 18.dp
+private val HomeQuickActionIconSize = 22.dp
 
 /** Колір великого балансу [R.string.home_balance_main] — кешбек у топ-барі та сусідні іконки. */
 private val HomeBalanceMainAmountColor = Color(0xFFFFFFFF)
@@ -326,6 +344,10 @@ private const val CardMonobankNegateAsset = "$OperationsLogosPath/monobank_negat
 /** Іконка чипа «гаманець» біля [R.string.home_balance_wallet] (2 144 ₴). */
 private const val CardWalletNegateAsset = "$OperationsLogosPath/wallet_negate.png"
 private const val QuickActionBankCardNegateAsset = "$OperationsLogosPath/bank_card_negate.png"
+private const val HomeProfileMessageAsset = "$OperationsLogosPath/profile_message.png"
+private const val HomeProfilePersonalDataAsset = "$OperationsLogosPath/personal_data.png"
+private const val HomeProfileSettingsAsset = "$OperationsLogosPath/settings.png"
+private const val HomeProfileFopAsset = "$OperationsLogosPath/fop.png"
 /** Іконка чипа кредитного ліміту біля [R.string.home_balance_credit]. */
 private const val CardAddDebitNegateAsset = "$OperationsLogosPath/add_debit_card_negate.png"
 /** Іконка чипа «Усі картки» під каруселлю. */
@@ -355,6 +377,15 @@ private fun rememberAssetImageBitmap(assetPath: String): ImageBitmap? {
                 BitmapFactory.decodeStream(input)?.asImageBitmap()
             }
         }.getOrNull()
+    }
+}
+
+@Composable
+private fun rememberProfileAvatarBitmap(path: String?): ImageBitmap? {
+    return remember(path) {
+        path
+            ?.takeIf { it.isNotBlank() }
+            ?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() }
     }
 }
 
@@ -396,15 +427,14 @@ private const val HomePullToRefreshRocketVisualScale = 5.8f
 
 /** Активна вкладка: м'який tint Lottie до #fd8688; неактивна — приглушення. */
 private fun Modifier.lottieNavInactiveGrayTint(selected: Boolean): Modifier =
-    if (selected) {
-        graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-            .drawWithContent {
-                drawContent()
-                drawRect(color = HomeNavIconActive, blendMode = BlendMode.SrcAtop)
-            }
-    } else {
-        alpha(0.42f)
-    }
+    graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+        .drawWithContent {
+            drawContent()
+            drawRect(
+                color = if (selected) HomeNavIconActive else HomeNavIconInactive,
+                blendMode = BlendMode.SrcAtop
+            )
+        }
 
 /**
  * Вертикальні палітри фону — по одній на кожну сторінку каруселі карт (узгоджено з [HomeCardsCarouselPageCount]).
@@ -484,29 +514,38 @@ private val HomeBgContentScrollPalettes: List<Array<Pair<Float, Color>>> = listO
     arrayOf(
         0.00f to Color(0xFF0C0F44),
         0.35f to Color(0xFF122859),
-        0.50f to Color(0xFF101B2F),
-        0.62f to Color(0xFF121212),
+        0.62f to Color(0xFF102A5F),
+        0.74f to Color(0xFF0B2142),
+        0.84f to Color(0xFF101727),
+        0.92f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
-        0.00f to Color(0xFF261132),
-        0.35f to Color(0xFF2D2765),
-        0.50f to Color(0xFF1A1028),
-        0.62f to Color(0xFF121212),
+        0.00f to Color(0xFF26072F),
+        0.22f to Color(0xFF321247),
+        0.42f to Color(0xFF342B68),
+        0.58f to Color(0xFF27315F),
+        0.72f to Color(0xFF172855),
+        0.84f to Color(0xFF111A30),
+        0.92f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
         0.00f to Color(0xFF022028),
         0.35f to Color(0xFF053446),
-        0.50f to Color(0xFF061C22),
-        0.62f to Color(0xFF121212),
+        0.62f to Color(0xFF063E48),
+        0.74f to Color(0xFF042B32),
+        0.84f to Color(0xFF091B1F),
+        0.92f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     ),
     arrayOf(
         0.00f to Color(0xFF1D042C),
         0.35f to Color(0xFF51195A),
-        0.50f to Color(0xFF200C14),
-        0.62f to Color(0xFF121212),
+        0.62f to Color(0xFF4A1752),
+        0.74f to Color(0xFF351136),
+        0.84f to Color(0xFF1E0C18),
+        0.92f to Color(0xFF121212),
         1.00f to Color(0xFF121212)
     )
 )
@@ -826,7 +865,7 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     translationX = outgoingStretchPx + incomingHoldPx
     transformOrigin = TransformOrigin(0.5f, 0.44f)
     rotationY = (oClamped * -0.8f).coerceIn(-1.6f, 1.6f)
-    cameraDistance = 22f * densityPx
+    cameraDistance = 26f * densityPx
     alpha = 1f
 }
 
@@ -863,7 +902,7 @@ internal fun HomeCardsTabDashboard(
     val spacerLimitsToUsefulAfterCompact = (HomeSectionGapLimitsToUseful.value - takeLimitsUseful).dp
     debtRemDp -= takeLimitsUseful
     val listBottomAfterCompact =
-        (listBottomContentPadding.value - debtRemDp).coerceAtLeast(0f).dp
+        (listBottomContentPadding.value - debtRemDp - HomeCardsListBottomTailTrim.value).coerceAtLeast(0f).dp
     val motionDensity = density.density
 
     val snapSpring = remember {
@@ -983,10 +1022,14 @@ internal fun HomeCardsTabDashboard(
                                             modifier = Modifier.offset(y = pullToRefreshOffsetDp / 2f)
                                         )
                                     }
-                                    HomeOperationsCard(
-                                        kind = kind,
-                                        modifier = Modifier.offset(y = pullToRefreshOffsetDp)
-                                    )
+                                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                                        HomeOperationsCard(
+                                            kind = kind,
+                                            modifier = Modifier
+                                                .requiredWidth(maxWidth + HomeCardsPagerHorizontalPeek * 2)
+                                                .offset(y = pullToRefreshOffsetDp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1023,7 +1066,16 @@ internal suspend fun PagerState.animateHomeCardPageSpring(targetPage: Int) {
     )
 }
 
-private val HomeProfileMenuScrimColor = Color.Black.copy(alpha = 0.62f)
+private val HomeProfileMenuScrimColor = Color.Black.copy(alpha = 0.54f)
+
+@Composable
+private fun Modifier.homeProfileRowFeedback(
+    interactionSource: MutableInteractionSource
+): Modifier {
+    val pressed by interactionSource.collectIsPressedAsState()
+    val hovered by interactionSource.collectIsHoveredAsState()
+    return background(if (pressed || hovered) HomeProfileMenuRowHighlight else Color.Transparent)
+}
 
 @Composable
 internal fun HomeProfileMenuBottomSheet(
@@ -1039,9 +1091,15 @@ internal fun HomeProfileMenuBottomSheet(
     val fop = stringResource(R.string.home_profile_sheet_fop)
     val details = stringResource(R.string.home_profile_sheet_details)
     val activeCd = stringResource(R.string.home_profile_sheet_active_cd)
+    val profileSheetBg = Color(0xFF252525)
+    val profileAvatar = rememberProfileAvatarBitmap(admin?.state?.profileAvatarPath)
     val detailsBrush = Brush.horizontalGradient(
         listOf(HomeProfileDetailsGradientStart, HomeProfileDetailsGradientEnd)
     )
+    var sheetVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        sheetVisible = true
+    }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -1049,6 +1107,22 @@ internal fun HomeProfileMenuBottomSheet(
             decorFitsSystemWindows = false
         )
     ) {
+        val dialogView = LocalView.current
+        DisposableEffect(dialogView) {
+            val window = (dialogView.parent as? DialogWindowProvider)?.window
+            val previousStatusBarColor = window?.statusBarColor
+            val previousNavigationBarColor = window?.navigationBarColor
+            window?.statusBarColor = HomeProfileMenuScrimColor.toArgb()
+            window?.navigationBarColor = profileSheetBg.toArgb()
+            onDispose {
+                if (previousStatusBarColor != null) {
+                    window.statusBarColor = previousStatusBarColor
+                }
+                if (previousNavigationBarColor != null) {
+                    window.navigationBarColor = previousNavigationBarColor
+                }
+            }
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1059,57 +1133,61 @@ internal fun HomeProfileMenuBottomSheet(
                     onClick = onDismiss
                 )
         ) {
-            Surface(
+            AnimatedVisibility(
+                visible = sheetVisible,
                 modifier = Modifier
-                    .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {}
-                    ),
-                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                color = Color(0xFF000000),
-                contentColor = Color.White,
-                tonalElevation = 0.dp,
-                shadowElevation = 0.dp
+                    .fillMaxSize(),
+                enter = slideInVertically(
+                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                    initialOffsetY = { it }
+                ) + fadeIn(animationSpec = tween(durationMillis = 180))
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 8.dp, bottom = 12.dp)
-                        .navigationBarsPadding(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.BottomCenter
                 ) {
                     Surface(
-                        shape = HomeProfileMenuSheetShape,
-                        color = HomeProfileMenuOuterBlockColor,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.48f)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {}
+                            ),
+                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                        color = profileSheetBg,
+                        contentColor = Color.White,
                         tonalElevation = 0.dp,
                         shadowElevation = 0.dp
                     ) {
-                        Surface(
+                        Column(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(6.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            color = HomeProfileMenuSettingsRowsColor,
-                            tonalElevation = 0.dp,
-                            shadowElevation = 0.dp
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 16.dp, bottom = 0.dp)
+                                .navigationBarsPadding(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Column(Modifier.fillMaxWidth()) {
-                                HomeProfileMenuSettingsRow(
-                                    icon = Icons.Filled.Description,
-                                    label = personal,
-                                    onClick = { }
-                                )
-                                HomeProfileMenuThinDivider()
-                                HomeProfileMenuSettingsRow(
-                                    icon = Icons.Outlined.Settings,
-                                    label = settings,
-                                    onClick = onAppSettingsClick
-                                )
-                            }
+                            Surface(
+                        shape = HomeProfileMenuSheetShape,
+                        color = HomeProfileMenuSettingsRowsColor,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 0.dp
+                    ) {
+                        Column(Modifier.fillMaxWidth()) {
+                            HomeProfileMenuSettingsRow(
+                                iconAsset = HomeProfilePersonalDataAsset,
+                                label = personal,
+                                onClick = { }
+                            )
+                            HomeProfileMenuThinDivider()
+                            HomeProfileMenuSettingsRow(
+                                iconAsset = HomeProfileSettingsAsset,
+                                label = settings,
+                                onClick = onAppSettingsClick
+                            )
                         }
                     }
                     Surface(
@@ -1119,15 +1197,18 @@ internal fun HomeProfileMenuBottomSheet(
                         shadowElevation = 0.dp
                     ) {
                         Column(Modifier.fillMaxWidth()) {
+                            val activeRowInteraction = remember { MutableInteractionSource() }
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .homeProfileRowFeedback(activeRowInteraction)
+                                    .hoverable(activeRowInteraction)
                                     .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
+                                        interactionSource = activeRowInteraction,
                                         indication = null,
                                         onClick = { }
                                     )
-                                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                                    .padding(horizontal = 16.dp, vertical = 16.dp)
                                     .semantics { contentDescription = activeCd },
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -1138,12 +1219,21 @@ internal fun HomeProfileMenuBottomSheet(
                                         .background(AvatarPlaceholder),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Person,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(26.dp),
-                                        tint = Color.White.copy(alpha = 0.95f)
-                                    )
+                                    if (profileAvatar != null) {
+                                        Image(
+                                            bitmap = profileAvatar,
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Person,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(26.dp),
+                                            tint = Color.White.copy(alpha = 0.95f)
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.width(14.dp))
                                 Column(Modifier.weight(1f)) {
@@ -1151,7 +1241,7 @@ internal fun HomeProfileMenuBottomSheet(
                                         text = activeName,
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color.White,
+                                        color = HomeProfileMenuText,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -1174,16 +1264,24 @@ internal fun HomeProfileMenuBottomSheet(
                                     Icon(
                                         imageVector = Icons.Filled.Check,
                                         contentDescription = null,
-                                        modifier = Modifier.size(14.dp),
-                                        tint = Color.White
+                                        modifier = Modifier.size(16.dp),
+                                        tint = HomeProfileCheckTint
                                     )
                                 }
                             }
                             HomeProfileMenuThinDivider()
+                            val fopRowInteraction = remember { MutableInteractionSource() }
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    .homeProfileRowFeedback(fopRowInteraction)
+                                    .hoverable(fopRowInteraction)
+                                    .clickable(
+                                        interactionSource = fopRowInteraction,
+                                        indication = null,
+                                        onClick = { }
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
@@ -1193,12 +1291,22 @@ internal fun HomeProfileMenuBottomSheet(
                                         .background(Color(0xFF0A0A0A)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Business,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(24.dp),
-                                        tint = Color.White
-                                    )
+                                    val fopIcon = rememberAssetImageBitmap(HomeProfileFopAsset)
+                                    if (fopIcon != null) {
+                                        Image(
+                                            bitmap = fopIcon,
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Business,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(24.dp),
+                                            tint = Color.White
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.width(14.dp))
                                 Text(
@@ -1206,23 +1314,18 @@ internal fun HomeProfileMenuBottomSheet(
                                     modifier = Modifier.weight(1f),
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color.White
+                                    color = HomeProfileMenuText
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(11.dp))
-                                        .background(Color(0xFF252528))
-                                        .border(
-                                            width = 1.dp,
-                                            brush = detailsBrush,
-                                            shape = RoundedCornerShape(11.dp)
-                                        )
+                                        .clip(RoundedCornerShape(999.dp))
+                                        .background(HomeProfileDetailsButtonBg)
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null,
                                             onClick = { }
                                         )
-                                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                                        .padding(horizontal = 16.dp, vertical = 7.dp)
                                 ) {
                                     Text(
                                         text = details,
@@ -1235,27 +1338,34 @@ internal fun HomeProfileMenuBottomSheet(
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
     }
 }
+}
+}
 
 @Composable
 private fun HomeProfileMenuSettingsRow(
-    icon: ImageVector,
+    iconAsset: String,
     label: String,
     onClick: () -> Unit
 ) {
+    val iconBitmap = rememberAssetImageBitmap(iconAsset)
+    val rowInteraction = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .homeProfileRowFeedback(rowInteraction)
+            .hoverable(rowInteraction)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = rowInteraction,
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 17.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -1265,12 +1375,21 @@ private fun HomeProfileMenuSettingsRow(
                 .background(HomeProfileMenuIconCircleBg),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-                tint = Color.White
-            )
+            if (iconBitmap != null) {
+                Image(
+                    bitmap = iconBitmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.Description,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    tint = Color.White
+                )
+            }
         }
         Spacer(modifier = Modifier.width(14.dp))
         Text(
@@ -1278,7 +1397,7 @@ private fun HomeProfileMenuSettingsRow(
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
-            color = Color.White,
+            color = HomeProfileMenuText,
             maxLines = 2
         )
     }
@@ -1289,7 +1408,7 @@ private fun HomeProfileMenuThinDivider() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .padding(start = 72.dp, end = 0.dp)
             .height(1.dp)
             .background(HomeProfileMenuDivider)
     )
@@ -1297,9 +1416,12 @@ private fun HomeProfileMenuThinDivider() {
 
 @Composable
 private fun HomeTopBar(onProfileClick: () -> Unit) {
+    val admin = LocalAppAdmin.current
+    val profileAvatar = rememberProfileAvatarBitmap(admin?.state?.profileAvatarPath)
     val graphNegateRoot = rememberAssetImageBitmap(HomeGraphNegateAsset)
     val graphNegateOps = rememberAssetImageBitmap(HomeGraphNegateInOperationsLogos)
     val graphNegateBitmap = graphNegateRoot ?: graphNegateOps
+    val profileMessageBitmap = rememberAssetImageBitmap(HomeProfileMessageAsset)
     val catIconBitmap = rememberAssetImageBitmap(HomeCatIconAsset)
     val chartsCd = stringResource(R.string.home_charts_cd)
     val bonusAmountText = stringResource(R.string.home_bonus_amount)
@@ -1310,42 +1432,69 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(AvatarPlaceholder)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onProfileClick
-                ),
-            contentAlignment = Alignment.Center
+        Row(
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Outlined.Person,
-                contentDescription = stringResource(R.string.home_profile_cd),
-                tint = HomeBalanceMainAmountColor,
-                modifier = Modifier.size(22.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(AvatarPlaceholder)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onProfileClick
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (profileAvatar != null) {
+                    Image(
+                        bitmap = profileAvatar,
+                        contentDescription = stringResource(R.string.home_profile_cd),
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Person,
+                        contentDescription = stringResource(R.string.home_profile_cd),
+                        tint = HomeBalanceMainAmountColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { },
+                contentAlignment = Alignment.Center
+            ) {
+                if (profileMessageBitmap != null) {
+                    Image(
+                        bitmap = profileMessageBitmap,
+                        contentDescription = stringResource(R.string.home_chat_cd),
+                        modifier = Modifier.size(23.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.ChatBubbleOutline,
+                        contentDescription = stringResource(R.string.home_chat_cd),
+                        tint = HomeBalanceMainAmountColor,
+                        modifier = Modifier.size(23.dp)
+                    )
+                }
+            }
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Outlined.ChatBubbleOutline,
-                contentDescription = stringResource(R.string.home_chat_cd),
-                tint = HomeBalanceMainAmountColor,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { }
-                    .padding(8.dp)
-            )
             Row(
                 modifier = Modifier
                     .clearAndSetSemantics {
@@ -1361,14 +1510,20 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                HomeCashbackGiftIcon(modifier = Modifier.size(26.dp))
+                HomeCashbackGiftIcon(modifier = Modifier.size(22.dp))
                 Text(
                     text = bonusAmountText,
                     color = HomeBalanceMainAmountColor,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Normal
+                    fontWeight = FontWeight.SemiBold
                 )
             }
+            Box(
+                modifier = Modifier
+                    .height(24.dp)
+                    .width(1.dp)
+                    .background(HomeBalanceMainAmountColor.copy(alpha = 0.24f))
+            )
             if (catIconBitmap != null) {
                 Box(
                     modifier = Modifier
@@ -1865,66 +2020,36 @@ private fun HomeAllCardsChip(modifier: Modifier = Modifier) {
 
 @Composable
 private fun HomeQuickActions() {
-    val transferQuickIcon = rememberAssetImageBitmap(QuickActionBankCardNegateAsset)
-    val ibanQuickIcon = rememberAssetImageBitmap("$OperationsLogosPath/iban.png")
-    val otherQuickIcon = rememberAssetImageBitmap("$OperationsLogosPath/layer_negate.png")
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         QuickAction(stringResource(R.string.home_action_transfer)) {
-            if (transferQuickIcon != null) {
-                Image(
-                    bitmap = transferQuickIcon,
-                    contentDescription = null,
-                    modifier = Modifier.size(26.dp),
-                    contentScale = ContentScale.Fit,
-                    colorFilter = ColorFilter.tint(QuickActionIconTint)
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Filled.CreditCard,
-                    contentDescription = null,
-                    tint = QuickActionIconTint,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
+            Image(
+                painter = painterResource(R.drawable.cardpay),
+                contentDescription = null,
+                modifier = Modifier.size(HomeQuickActionIconSize),
+                contentScale = ContentScale.Fit,
+                colorFilter = ColorFilter.tint(QuickActionIconTint)
+            )
         }
         QuickAction(stringResource(R.string.home_action_iban)) {
-            if (ibanQuickIcon != null) {
-                Image(
-                    bitmap = ibanQuickIcon,
-                    contentDescription = null,
-                    modifier = Modifier.size(26.dp),
-                    contentScale = ContentScale.Fit,
-                    colorFilter = ColorFilter.tint(QuickActionIconTint)
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Filled.Description,
-                    contentDescription = null,
-                    tint = QuickActionIconTint,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
+            Image(
+                painter = painterResource(R.drawable.ibanpay),
+                contentDescription = null,
+                modifier = Modifier.size(HomeQuickActionIconSize),
+                contentScale = ContentScale.Fit,
+                colorFilter = ColorFilter.tint(QuickActionIconTint)
+            )
         }
         QuickAction(stringResource(R.string.home_action_other)) {
-            if (otherQuickIcon != null) {
-                Image(
-                    bitmap = otherQuickIcon,
-                    contentDescription = null,
-                    modifier = Modifier.size(26.dp),
-                    contentScale = ContentScale.Fit,
-                    colorFilter = ColorFilter.tint(QuickActionIconTint)
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Filled.Layers,
-                    contentDescription = null,
-                    tint = QuickActionIconTint,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
+            Image(
+                painter = painterResource(R.drawable.other_payments),
+                contentDescription = null,
+                modifier = Modifier.size(HomeQuickActionIconSize),
+                contentScale = ContentScale.Fit,
+                colorFilter = ColorFilter.tint(QuickActionIconTint)
+            )
         }
     }
 }
@@ -1993,7 +2118,7 @@ private fun HomeOperationsCard(
             amount = stringResource(R.string.home_op_steam_amount),
             dateLabel = "Сьогодні",
             commissionAmount = null,
-            logoAssetName = "steam.png"
+            logoAssetName = "Steam_icon_logo.svg.webp"
         ),
         HomeOperationUi(
             title = stringResource(R.string.home_op_card),
@@ -2457,7 +2582,14 @@ private fun HomeUsefulCard() {
         shape = CardShape,
         color = HomeUsefulCardColor
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(
+                start = 16.dp,
+                top = 16.dp,
+                end = 16.dp,
+                bottom = 24.dp
+            )
+        ) {
             Text(
                 text = stringResource(R.string.home_useful_title),
                 color = TextPrimary,
@@ -2610,9 +2742,9 @@ private fun UsefulTile(
     modifier: Modifier = Modifier,
     iconTint: Color = AccentRed
 ) {
-    Surface(
+        Surface(
         modifier = modifier
-            .height(86.dp)
+            .height(105.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -2660,8 +2792,7 @@ private fun HomeBottomBar(
         Surface(
             modifier = Modifier
                 .weight(1f)
-                .height(BottomBarHeight)
-                .border(1.dp, HomeBottomBarBorder, RoundedCornerShape(BottomBarPillRadius)),
+                .height(BottomBarHeight),
             shape = RoundedCornerShape(BottomBarPillRadius),
             color = HomeBottomBarFill,
             tonalElevation = 0.dp,
@@ -2706,8 +2837,7 @@ private fun HomeBottomBar(
         }
         Surface(
             modifier = Modifier
-                .size(BottomBarHeight)
-                .border(1.dp, HomeBottomBarBorder, CircleShape),
+                .size(BottomBarHeight),
             shape = CircleShape,
             color = HomeBottomBarFill,
             tonalElevation = 0.dp,
@@ -2982,23 +3112,13 @@ private fun BottomBarNavLabel(
 /** PNG `gift-box_negate` біля суми кешбеку; якщо файлу немає — [Icons.Outlined.CardGiftcard]. */
 @Composable
 private fun HomeCashbackGiftIcon(modifier: Modifier = Modifier) {
-    val bitmap = rememberFirstSuccessfulAssetBitmap(HomeGiftBoxNegateAssetPaths)
-    if (bitmap != null) {
-        Image(
-            bitmap = bitmap,
-            contentDescription = null,
-            modifier = modifier,
-            contentScale = ContentScale.Fit,
-            colorFilter = ColorFilter.tint(HomeBalanceMainAmountColor)
-        )
-    } else {
-        Icon(
-            imageVector = Icons.Outlined.CardGiftcard,
-            contentDescription = null,
-            tint = HomeBalanceMainAmountColor,
-            modifier = modifier
-        )
-    }
+    Image(
+        painter = painterResource(R.drawable.gift),
+        contentDescription = null,
+        modifier = modifier,
+        contentScale = ContentScale.Fit,
+        colorFilter = ColorFilter.tint(HomeBalanceMainAmountColor)
+    )
 }
 
 private fun progressForFrame(composition: LottieComposition, frame: Float): Float =
