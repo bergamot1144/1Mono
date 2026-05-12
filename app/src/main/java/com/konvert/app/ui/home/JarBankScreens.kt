@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -134,6 +135,8 @@ private val JarSquircleEnd = Color(0xFFFCA471)
 private val JarDividerLine = Color.White.copy(alpha = 0.12f)
 private val JarMiniStatCardBg = Color(0xFF262626)
 private val JarMiniStatCardHoverBg = Color(0xFF343434)
+private val JarMiniStatCardText = Color(0xFFE5E5E5)
+private val JarStatsSummaryText = Color(0xFFABABAB)
 private val JarMonoLinkRed = Color(0xFFFF6568)
 private val JarTopupTextColor = Color(0xFFE4E4E4)
 
@@ -146,6 +149,12 @@ private val SharePrimaryText = Color(0xFFE3E3E3)
 private val ShareValueText = Color(0xFF818181)
 private val ShareButtonText = Color(0xFFE6E6E6)
 private val ShareCopiedToastBg = Color(0xFF5EB76E)
+private val ShareRowPressedBg = Color(0xFF2B2B2B)
+private val ShareButtonPressedBg = Color(0xFF3E3E3E)
+private val ShareReqSectionTitleColor = Color(0xFFE1E1E1)
+/** Лёгкое сжатие трекинга, ближе к референсу и уже по ширине строка со ссылкой */
+private val ShareScreenLetterSpacing = (-0.28).sp
+private val ShareValueLetterSpacing = (-0.4).sp
 
 private const val OperationsLogosPath = "operations_logos"
 private const val MainJarAsset = "$OperationsLogosPath/main_jar.png"
@@ -734,7 +743,7 @@ private data class JarMiniStatCardSpec(
     val iconCircle: Color,
     val titleRes: Int,
     val amount: String,
-    val width: Dp = 152.dp,
+    val width: Dp = 170.dp,
     val assetPath: String? = null,
     val category: JarTopUpCategory? = null
 )
@@ -762,7 +771,6 @@ private fun JarStatsMiniCardsRow(
                 iconCircle = Color(0xFFE5656A),
                 titleRes = R.string.jar_stats_card_regular,
                 amount = regularAmount,
-                width = 168.dp,
                 assetPath = JarStatRegularLinkAsset
             ),
             JarMiniStatCardSpec(
@@ -770,7 +778,6 @@ private fun JarStatsMiniCardsRow(
                 iconCircle = Color(0xFFFFCC00),
                 titleRes = R.string.jar_stats_card_direct,
                 amount = cardNumberAmount,
-                width = 152.dp,
                 assetPath = JarTopupForwardTransfersAsset,
                 category = JarTopUpCategory.CardNumber
             )
@@ -778,7 +785,7 @@ private fun JarStatsMiniCardsRow(
     }
     LazyRow(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(horizontal = 20.dp),
         verticalAlignment = Alignment.Top
     ) {
@@ -807,7 +814,7 @@ private fun JarMiniStatCard(
     Column(
         modifier = Modifier
             .width(spec.width)
-            .height(170.dp)
+            .height(spec.width)
             .clip(RoundedCornerShape(16.dp))
             .background(cardBg)
             .hoverable(interactionSource)
@@ -856,22 +863,24 @@ private fun JarMiniStatCard(
         ) {
             Text(
                 text = stringResource(spec.titleRes),
-                color = Color.White,
+                color = JarMiniStatCardText,
                 fontSize = 15.sp,
                 lineHeight = 18.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.Normal,
                 textAlign = TextAlign.Start,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.graphicsLayer(scaleY = 1.06f)
             )
         }
         Spacer(modifier = Modifier.weight(1f))
         Text(
             text = spec.amount,
-            color = Color.White,
+            color = JarMiniStatCardText,
             fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.2).sp
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = (-0.2).sp,
+            modifier = Modifier.graphicsLayer(scaleY = 1.06f)
         )
     }
 }
@@ -892,7 +901,7 @@ private fun JarYourTopUpsSection(
         ) {
             Text(
                 text = stringResource(R.string.jar_topups_title),
-                color = Color.White,
+                color = Color(0xFFE1E1E1),
                 fontSize = 22.sp,
                 lineHeight = 26.sp,
                 fontWeight = FontWeight.Bold,
@@ -1068,7 +1077,7 @@ private fun JarStatMono(amount: String, monoLogo: ImageBitmap?) {
         }
         Text(
             text = amount,
-            color = Color.White,
+            color = JarStatsSummaryText,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -1109,7 +1118,7 @@ private fun JarStatFlag(amount: String) {
         }
         Text(
             text = amount,
-            color = Color.White,
+            color = JarStatsSummaryText,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -1137,7 +1146,7 @@ private fun JarStatGlobe(amount: String) {
         }
         Text(
             text = amount,
-            color = Color.White,
+            color = JarStatsSummaryText,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -1180,14 +1189,16 @@ internal fun JarBankShareScreen(
                 color = ShareTitleText,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                lineHeight = 32.sp
+                lineHeight = 32.sp,
+                letterSpacing = ShareScreenLetterSpacing
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = subtitle,
                 color = ShareMuted,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.Normal
+                fontWeight = FontWeight.Normal,
+                letterSpacing = ShareScreenLetterSpacing
             )
         }
         Spacer(modifier = Modifier.height(24.dp))
@@ -1195,7 +1206,7 @@ internal fun JarBankShareScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             ShareTopCard(
                 modifier = Modifier.weight(1f),
@@ -1246,12 +1257,16 @@ private fun ShareTopCard(
     label: String,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val hovered by interactionSource.collectIsHoveredAsState()
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
-            .background(ShareCardBg)
+            .background(if (pressed || hovered) ShareRowPressedBg else ShareCardBg)
+            .hoverable(interactionSource)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 indication = null,
                 onClick = { }
             )
@@ -1270,10 +1285,11 @@ private fun ShareTopCard(
         Text(
             text = label,
             color = Color(0xFFD8D8D8),
-            fontSize = 14.sp,
+            fontSize = 17.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Start,
-            lineHeight = 17.sp,
+            lineHeight = 21.sp,
+            letterSpacing = ShareScreenLetterSpacing,
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -1311,15 +1327,16 @@ private fun ShareRequisitesCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 16.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 16.dp)
         ) {
             Text(
                 text = stringResource(R.string.jar_share_req_section),
-                color = SharePrimaryText,
+                color = ShareReqSectionTitleColor,
                 fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = ShareScreenLetterSpacing
             )
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             ShareReqRow(
                 icon = {
                     JarAssetIcon(
@@ -1332,7 +1349,7 @@ private fun ShareRequisitesCard(
                 value = linkValue,
                 onClick = { copyValue(linkValue, "Посилання скопійовано") }
             )
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             ShareReqRow(
                 icon = {
                     JarAssetIcon(
@@ -1345,18 +1362,22 @@ private fun ShareRequisitesCard(
                 value = cardValue,
                 onClick = { copyValue(cardValue, "Номер картки скопійовано") }
             )
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+            val shareBtnInteraction = remember { MutableInteractionSource() }
+            val sharePressed by shareBtnInteraction.collectIsPressedAsState()
+            val shareHovered by shareBtnInteraction.collectIsHoveredAsState()
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(ShareInnerButtonBg)
+                    .background(if (sharePressed || shareHovered) ShareButtonPressedBg else ShareInnerButtonBg)
+                    .hoverable(shareBtnInteraction)
                     .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
+                        interactionSource = shareBtnInteraction,
                         indication = null,
                         onClick = { }
                     )
-                    .padding(vertical = 13.dp),
+                    .padding(vertical = 9.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Row(
@@ -1368,7 +1389,8 @@ private fun ShareRequisitesCard(
                         text = stringResource(R.string.jar_share_button),
                         color = ShareButtonText,
                         fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = ShareScreenLetterSpacing
                     )
                 }
             }
@@ -1383,16 +1405,17 @@ private fun ShareRequisitesCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(24.dp)
+                    .height(22.dp)
                     .background(ShareCopiedToastBg),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.TopCenter
             ) {
                 Text(
                     text = copiedMessage.orEmpty(),
                     color = Color.White,
                     fontSize = 12.sp,
                     lineHeight = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 5.dp)
                 )
             }
         }
@@ -1406,15 +1429,22 @@ private fun ShareReqRow(
     value: String,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val valueScroll = rememberScrollState()
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
+            .background(if (pressed || hovered) ShareRowPressedBg else Color.Transparent)
+            .hoverable(interactionSource)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
-            ),
+            )
+            .padding(vertical = 2.dp),
         verticalAlignment = Alignment.Top
     ) {
         Box(
@@ -1430,19 +1460,29 @@ private fun ShareReqRow(
             Text(
                 text = title,
                 color = SharePrimaryText,
-                fontSize = 16.sp,
-                lineHeight = 19.sp,
-                fontWeight = FontWeight.Medium
+                fontSize = 17.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = ShareScreenLetterSpacing
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(valueScroll),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 ShareCopyIcon()
                 Text(
                     text = value,
                     color = ShareValueText,
-                    fontSize = 14.sp,
-                    lineHeight = 16.sp,
-                    fontWeight = FontWeight.Normal
+                    fontSize = 16.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.Normal,
+                    letterSpacing = ShareValueLetterSpacing,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Visible
                 )
             }
         }
@@ -1477,7 +1517,7 @@ private fun ShareCopyIcon(modifier: Modifier = Modifier) {
         Image(
             bitmap = bitmap,
             contentDescription = stringResource(R.string.jar_share_copy_cd),
-            modifier = modifier.size(12.dp),
+            modifier = modifier.size(20.dp),
             contentScale = ContentScale.Fit
         )
     } else {
@@ -1485,20 +1525,24 @@ private fun ShareCopyIcon(modifier: Modifier = Modifier) {
             imageVector = Icons.Outlined.ContentCopy,
             contentDescription = stringResource(R.string.jar_share_copy_cd),
             tint = ShareMuted,
-            modifier = modifier.size(12.dp)
+            modifier = modifier.size(20.dp)
         )
     }
 }
 
 @Composable
 private fun ShareDocRow(modifier: Modifier = Modifier) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val hovered by interactionSource.collectIsHoveredAsState()
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(ShareCardBg)
+            .background(if (pressed || hovered) ShareRowPressedBg else ShareCardBg)
+            .hoverable(interactionSource)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 indication = null,
                 onClick = { }
             )
@@ -1529,7 +1573,8 @@ private fun ShareDocRow(modifier: Modifier = Modifier) {
             text = stringResource(R.string.jar_share_doc_row),
             color = Color(0xFFBEBEBD),
             fontSize = 17.sp,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = ShareScreenLetterSpacing
         )
     }
 }

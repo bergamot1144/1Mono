@@ -1,7 +1,6 @@
 package com.konvert.app.ui.home.tabs
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -35,7 +33,6 @@ import com.konvert.app.ui.home.HomeCardsCarouselPageCount
 import com.konvert.app.ui.home.HomeCardsTabDashboard
 import com.konvert.app.ui.home.HomeProfileMenuBottomSheet
 import com.konvert.app.ui.home.StaticHomeBackground
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -65,7 +62,6 @@ fun CardsTabScreen(
     val density = LocalDensity.current
     val maxPullPx = with(density) { 220.dp.toPx() }
     var pullDistancePx by remember { mutableFloatStateOf(0f) }
-    var rocketTakeoff by remember { mutableStateOf(false) }
     val isAtTop by remember {
         derivedStateOf {
             homeListState.firstVisibleItemIndex == 0 && homeListState.firstVisibleItemScrollOffset == 0
@@ -97,15 +93,8 @@ fun CardsTabScreen(
             override suspend fun onPreFling(available: Velocity): Velocity {
                 if (pullDistancePx <= 0f) return Velocity.Zero
                 pullDistancePx = 0f
-                rocketTakeoff = true
                 return available
             }
-        }
-    }
-    LaunchedEffect(rocketTakeoff) {
-        if (rocketTakeoff) {
-            delay(560)
-            rocketTakeoff = false
         }
     }
     val pullOffsetPx by animateFloatAsState(
@@ -113,13 +102,7 @@ fun CardsTabScreen(
         animationSpec = tween(durationMillis = 220),
         label = "cardsTabPullOffsetPx"
     )
-    val pullProgress = (pullOffsetPx / maxPullPx).coerceIn(0f, 1f)
     val operationsDropDp = with(density) { (pullOffsetPx * 0.23f).toDp() }
-    val rocketTakeoffProgress by animateFloatAsState(
-        targetValue = if (rocketTakeoff) 1f else 0f,
-        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
-        label = "cardsTabRocketTakeoffProgress"
-    )
 
     Box(modifier = modifier.fillMaxSize()) {
         StaticHomeBackground(
@@ -158,8 +141,6 @@ fun CardsTabScreen(
                     onHomeScrollContentHeightPx = { homeScrollContentHeightPx = it },
                     onRequestProfileMenu = { profileMenuOpen = true },
                     pullToRefreshOffsetDp = operationsDropDp,
-                    showPullToRefreshRocket = pullProgress > 0.03f || rocketTakeoff,
-                    pullToRefreshRocketTakeoffProgress = rocketTakeoffProgress,
                     modifier = Modifier
                         .fillMaxSize()
                         .nestedScroll(pullNestedScroll)

@@ -64,6 +64,7 @@ internal data class JarTxnDetailPayload(
 )
 
 private val JarTxnScreenBg = Color(0xFF121212)
+private val JarTxnLinkSectionBg = Color(0xFF1D1D1D)
 private val JarTxnDateMuted = Color(0xFF8E8E93)
 private val JarTxnAmountGreen = Color(0xFF4CD964)
 private val JarTxnBadgeBg = Color.Black
@@ -128,10 +129,12 @@ internal fun JarTopUpTransactionsScreen(
     val showHeaderDivider = category == JarTopUpCategory.OneTime || category == JarTopUpCategory.Link
     val fromLabel = stringResource(R.string.jar_detail_from_sender)
 
+    val screenBg =
+        if (category == JarTopUpCategory.Link) JarTxnLinkSectionBg else JarTxnScreenBg
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(JarTxnScreenBg)
+            .background(screenBg)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -153,18 +156,18 @@ internal fun JarTopUpTransactionsScreen(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(
                 horizontal = 20.dp,
-                vertical = if (category == JarTopUpCategory.Link) 18.dp else 4.dp
+                vertical = if (category == JarTopUpCategory.Link) 6.dp else 4.dp
             )
         )
         if (showHeaderDivider) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(if (category == JarTopUpCategory.Link) 2.dp else 8.dp))
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 0.dp),
                 thickness = 1.dp,
                 color = Color.White.copy(alpha = 0.10f)
             )
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(if (category == JarTopUpCategory.Link) 0.dp else 12.dp))
         LazyColumn(
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp)
         ) {
@@ -280,8 +283,8 @@ private fun JarTxnDateHeader(text: String, large: Boolean = false) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                top = if (large) 28.dp else 18.dp,
-                bottom = if (large) 22.dp else 18.dp
+                top = if (large) 16.dp else 18.dp,
+                bottom = if (large) 14.dp else 18.dp
             )
     )
 }
@@ -333,7 +336,7 @@ private fun JarTxnLinkRow(
         Row(
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 28.dp),
+                .padding(start = 18.dp, end = 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(

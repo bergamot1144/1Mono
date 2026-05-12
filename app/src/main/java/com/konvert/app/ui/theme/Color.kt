@@ -34,8 +34,8 @@ val AccentRed = PinDotFilled
 val HomeNavIconActive = Color(0xFFFD8688)
 
 /** Градієнт рамки блоку «Ліміти» */
-val LimitsGradientStart = Color(0xFF8B5CF6)
-val LimitsGradientEnd = Color(0xFF22D3EE)
+val LimitsGradientStart = Color(0xFF7D1CD6)
+val LimitsGradientEnd = Color(0xFF1FA694)
 
 /** Плаваюча нижня панель (прозорий — без суцільної смуги) */
 val BottomBarScrim = Color.Transparent
@@ -59,7 +59,7 @@ val QuickActionIconTint = Color(0xFFCFE0FE)
 val HomeQuickActionCaptionColor = Color(0xFFC8CBD2)
 
 /** Кнопка «Усі ›» у блоці операцій: ледь блакитний напівпрозорий фон, текст #698ed1 */
-val HomeOperationsAllChipBackground = Color(0xFF698ED1).copy(alpha = 0.20f)
+val HomeOperationsAllChipBackground = Color(0xFF2B3338)
 val HomeOperationsAllChipText = Color(0xFF698ED1)
 
 /** Картка «Операції» */

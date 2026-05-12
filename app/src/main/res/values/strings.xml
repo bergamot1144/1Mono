@@ -68,6 +68,7 @@
     <string name="home_rate_eur_values">50.62 / 51.27</string>
     <string name="home_useful_support">Служба підтримки</string>
     <string name="home_useful_faq">Поширені запитання</string>
+    <string name="home_useful_qr">Сканер\nQR-коду</string>
     <string name="home_useful_statements">Виписки та довідки</string>
     <string name="home_useful_tariffs">Умови і тарифи</string>
 

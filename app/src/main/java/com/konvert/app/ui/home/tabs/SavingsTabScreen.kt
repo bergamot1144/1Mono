@@ -82,6 +82,7 @@ private const val SavingsArchiveIconAsset = "operations_logos/Archive.png"
 private const val SavingsJarsIconAsset = "operations_logos/jars.png"
 private const val SavingsOpenDepositIconAsset = "operations_logos/open_deposit.png"
 private const val SavingsOpenJarIconAsset = "operations_logos/open_jaar.png"
+private const val SavingsInfoIconAsset = "operations_logos/info.png"
 
 private data class SavingsActionCell(
     val titleRes: Int,
@@ -203,18 +204,29 @@ fun SavingsTabScreen(
                             .padding(horizontal = 8.dp)
                     ) {
                         val infoCd = stringResource(R.string.savings_info_cd)
+                        val infoBitmap = rememberSavingsAssetBitmap(SavingsInfoIconAsset)
                         IconButton(
                             onClick = { },
                             modifier = Modifier
                                 .size(48.dp)
+                                .offset(y = (-6).dp)
                                 .align(Alignment.TopEnd)
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Info,
-                                contentDescription = infoCd,
-                                tint = Color.White.copy(alpha = 0.95f),
-                                modifier = Modifier.size(24.dp)
-                            )
+                            if (infoBitmap != null) {
+                                Image(
+                                    bitmap = infoBitmap,
+                                    contentDescription = infoCd,
+                                    modifier = Modifier.size(45.dp),
+                                    contentScale = ContentScale.Fit
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Outlined.Info,
+                                    contentDescription = infoCd,
+                                    tint = Color.White.copy(alpha = 0.95f),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                         Column(
                             modifier = Modifier

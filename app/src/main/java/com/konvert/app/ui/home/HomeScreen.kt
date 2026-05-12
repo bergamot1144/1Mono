@@ -165,7 +165,6 @@ import com.konvert.app.ui.theme.QuickActionIconTint
 import com.konvert.app.ui.theme.TextPrimary
 import com.airbnb.lottie.LottieComposition
 import com.airbnb.lottie.compose.LottieAnimation
-import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.LottieClipSpec
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.rememberLottieAnimatable
@@ -312,7 +311,7 @@ private val HomeSectionGapLimitsToUseful = 88.dp
  * вертикальний хвіст сторінки: спочатку зменшуються [HomeSectionGapOperationsToLimits] та
  * [HomeSectionGapLimitsToUseful], решта — з нижнього [PaddingValues] [LazyColumn].
  */
-private val HomeSectionCompactBelowOperationsDp = 72.dp
+private val HomeSectionCompactBelowOperationsDp = 102.dp
 
 /** У «Корисне»: однаковий горизонтальний inset для ряду курсів і сітки плиток. */
 private val HomeUsefulInnerHorizontalPadding = 0.dp
@@ -327,7 +326,8 @@ private const val HomeTopStatsScale = 1.36f
 private val HomeBalanceWalletIconSize = 22.dp
 private val HomeBalanceCreditIconSize = 22.dp
 private val HomeOperationsTitleFontSize = 20.sp
-private val HomeOperationRowFontSize = 18.sp
+private val HomeOperationRowFontSize = 16.sp
+private val HomeOperationRowTextColor = Color(0xFFE4E2E3)
 
 /** Колір великого балансу [R.string.home_balance_main] — кешбек у топ-барі та сусідні іконки. */
 private val HomeBalanceMainAmountColor = Color(0xFFFFFFFF)
@@ -365,6 +365,16 @@ private const val CardCreditSumAsset = "$OperationsLogosPath/credit_sum.png"
 private const val HomeAllCardsChipAsset = "$OperationsLogosPath/all_cards.png"
 
 private const val HomeStatsAsset = "$OperationsLogosPath/stats.png"
+private const val HomeUsefulTermsAsset = "$OperationsLogosPath/terms_and_tarifs.png"
+private const val HomeUsefulStatementsAsset = "$OperationsLogosPath/dovidky.png"
+private const val HomeUsefulQrAsset = "$OperationsLogosPath/qr-scan.png"
+private const val HomeUsefulQuestionsAsset = "$OperationsLogosPath/questions.png"
+private const val HomeUsefulSupportAsset = "$OperationsLogosPath/support.png"
+private const val HomeOperationTransferAssetName = "transfer.png"
+private const val HomeLimitsAsset = "$OperationsLogosPath/limits_.png"
+private const val HomeForeignAsset = "$OperationsLogosPath/foreign.png"
+private const val HomeUsdAsset = "$OperationsLogosPath/usd.png"
+private const val HomeEurAsset = "$OperationsLogosPath/eur.png"
 private const val HomeGraphNegateAsset = "graph_negate.png"
 private const val HomeGraphNegateInOperationsLogos = "$OperationsLogosPath/graph_negate.png"
 private const val HomeCatIconAsset = "$OperationsLogosPath/cat_icon.png"
@@ -467,9 +477,6 @@ private const val CreditsNavLottieAsset = "animations/credits_icon.json"
 private const val MoreNavLottieAsset = "animations/more_icon.json"
 private const val SavingsNavLottieAsset = "animations/deposits_dnm_16_quick.json"
 private const val MarketNavLottieAsset = "animations/market20_icon.json"
-private const val HomePullToRefreshRocketAsset = "animations/rocket.json"
-private val HomePullToRefreshRocketSize = 164.dp
-private const val HomePullToRefreshRocketVisualScale = 5.8f
 
 /** Активна вкладка: м'який tint Lottie до #fd8688; неактивна — приглушення. */
 private fun Modifier.lottieNavInactiveGrayTint(selected: Boolean): Modifier =
@@ -933,8 +940,6 @@ internal fun HomeCardsTabDashboard(
     onHomeScrollContentHeightPx: (Float) -> Unit,
     onRequestProfileMenu: () -> Unit = {},
     pullToRefreshOffsetDp: androidx.compose.ui.unit.Dp = 0.dp,
-    showPullToRefreshRocket: Boolean = false,
-    pullToRefreshRocketTakeoffProgress: Float = 0f,
     modifier: Modifier = Modifier
 ) {
     val balanceSectionTopPadding =
@@ -949,12 +954,10 @@ internal fun HomeCardsTabDashboard(
             HomeCardsListBottomGapBeyondBar
     val compactBelow = HomeSectionCompactBelowOperationsDp
     var debtRemDp = compactBelow.value
-    val takeOpsLimits = kotlin.math.min(debtRemDp, HomeSectionGapOperationsToLimits.value)
-    val spacerOpsToLimitsAfterCompact = (HomeSectionGapOperationsToLimits.value - takeOpsLimits).dp
-    debtRemDp -= takeOpsLimits
-    val takeLimitsUseful = kotlin.math.min(debtRemDp, HomeSectionGapLimitsToUseful.value)
-    val spacerLimitsToUsefulAfterCompact = (HomeSectionGapLimitsToUseful.value - takeLimitsUseful).dp
-    debtRemDp -= takeLimitsUseful
+    val spacerOpsToLimitsAfterCompact = HomeCardsLazyHorizontalPadding
+    val spacerLimitsToUsefulAfterCompact = HomeCardsLazyHorizontalPadding + 2.dp
+    debtRemDp -= HomeSectionGapOperationsToLimits.value
+    debtRemDp -= HomeSectionGapLimitsToUseful.value
     val listBottomAfterCompact =
         (listBottomContentPadding.value - debtRemDp - HomeCardsListBottomTailTrim.value).coerceAtLeast(0f).dp
     val motionDensity = density.density
@@ -1068,15 +1071,8 @@ internal fun HomeCardsTabDashboard(
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(HomeSectionGapQuickToOperations),
-                                        contentAlignment = Alignment.BottomCenter
-                                    ) {
-                                        HomePullToRefreshRocket(
-                                            visible = showPullToRefreshRocket,
-                                            takeoffProgress = pullToRefreshRocketTakeoffProgress,
-                                            modifier = Modifier.offset(y = pullToRefreshOffsetDp / 2f)
-                                        )
-                                    }
+                                            .height(HomeSectionGapQuickToOperations)
+                                    )
                                     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                                         HomeOperationsCard(
                                             kind = kind,
@@ -2205,14 +2201,14 @@ private fun HomeOperationsCard(
             amount = stringResource(R.string.home_op_steam_amount),
             dateLabel = "Сьогодні",
             commissionAmount = null,
-            logoAssetName = "Steam_icon_logo.svg.webp"
+            logoAssetName = HomeOperationTransferAssetName
         ),
         HomeOperationUi(
             title = stringResource(R.string.home_op_card),
             amount = stringResource(R.string.home_op_card_amount),
             dateLabel = "Вчора",
             commissionAmount = null,
-            logoAssetName = null,
+            logoAssetName = HomeOperationTransferAssetName,
             fallbackIcon = Icons.Filled.CreditCard
         ),
         HomeOperationUi(
@@ -2220,7 +2216,7 @@ private fun HomeOperationsCard(
             amount = stringResource(R.string.home_op_mcd_amount),
             dateLabel = "14 квітня 2026",
             commissionAmount = null,
-            logoAssetName = null,
+            logoAssetName = HomeOperationTransferAssetName,
             logoCircleBackground = Color(0xFFC8102E),
             fallbackIcon = Icons.Filled.Restaurant,
             fallbackIconTint = Color.White
@@ -2236,7 +2232,7 @@ private fun HomeOperationsCard(
                 amount = op.amount.ifBlank { stringResource(R.string.admin_card_operation_default_amount) },
                 dateLabel = op.dateLabel.ifBlank { "Без дати" },
                 commissionAmount = op.commissionAmount.takeIf { op.hasCommission && it.isNotBlank() },
-                logoAssetName = operationLogoAssetForTitle(op.title),
+                logoAssetName = HomeOperationTransferAssetName,
                 fallbackIcon = Icons.Filled.CreditCard
             )
         }
@@ -2322,46 +2318,6 @@ private fun HomeOperationsCard(
     }
 }
 
-private fun operationLogoAssetForTitle(title: String): String? {
-    return when {
-        title.contains("Apple", ignoreCase = true) -> "Apple.png"
-        else -> null
-    }
-}
-
-@Composable
-private fun HomePullToRefreshRocket(
-    visible: Boolean,
-    takeoffProgress: Float,
-    modifier: Modifier = Modifier
-) {
-    if (!visible) return
-    val composition by rememberLottieComposition(LottieCompositionSpec.Asset(HomePullToRefreshRocketAsset))
-    val launchY by animateFloatAsState(
-        targetValue = -220f * takeoffProgress,
-        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
-        label = "homePullRocketLaunchY"
-    )
-    val alpha by animateFloatAsState(
-        targetValue = (1f - takeoffProgress).coerceIn(0f, 1f),
-        animationSpec = tween(durationMillis = 520),
-        label = "homePullRocketAlpha"
-    )
-    LottieAnimation(
-        composition = composition,
-        iterations = if (takeoffProgress > 0.01f) 1 else LottieConstants.IterateForever,
-        clipToCompositionBounds = false,
-        modifier = modifier
-            .size(HomePullToRefreshRocketSize)
-            .graphicsLayer {
-                translationY = launchY
-                this.alpha = alpha
-                scaleX = HomePullToRefreshRocketVisualScale
-                scaleY = HomePullToRefreshRocketVisualScale
-            }
-    )
-}
-
 @Composable
 private fun OperationRow(
     title: String,
@@ -2422,10 +2378,14 @@ private fun OperationRow(
             }
         }
         Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 14.dp)
+        ) {
             Text(
                 text = title,
-                color = TextPrimary,
+                color = HomeOperationRowTextColor,
                 fontSize = HomeOperationRowFontSize,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -2434,9 +2394,11 @@ private fun OperationRow(
         }
         Text(
             text = amount,
-            color = TextPrimary,
+            color = HomeOperationRowTextColor,
             fontSize = HomeOperationRowFontSize,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.End,
+            modifier = Modifier.widthIn(min = 82.dp)
         )
     }
 }
@@ -2611,12 +2573,14 @@ private fun HomeOperationDetailScreen(
 @Composable
 private fun HomeLimitsAbroadCard() {
     val borderBrush = Brush.horizontalGradient(listOf(LimitsGradientStart, LimitsGradientEnd))
+    val limitsIcon = rememberAssetImageBitmap(HomeLimitsAsset)
+    val foreignIcon = rememberAssetImageBitmap(HomeForeignAsset)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .border(1.5.dp, borderBrush, CardShape),
         shape = CardShape,
-        color = KeypadButton
+        color = Color(0xFF262626)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -2629,16 +2593,26 @@ private fun HomeLimitsAbroadCard() {
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) { }
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(Icons.Outlined.Business, null, tint = LimitsGradientStart, modifier = Modifier.size(28.dp))
+                if (limitsIcon != null) {
+                    Image(
+                        bitmap = limitsIcon,
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    Icon(Icons.Outlined.Business, null, tint = LimitsGradientStart, modifier = Modifier.size(28.dp))
+                }
                 Text(
                     text = stringResource(R.string.home_limits_left),
                     color = TextPrimary,
                     fontSize = 13.sp,
-                    lineHeight = 17.sp
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
             Box(
@@ -2654,16 +2628,26 @@ private fun HomeLimitsAbroadCard() {
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) { }
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(Icons.Outlined.Language, null, tint = LimitsGradientEnd, modifier = Modifier.size(28.dp))
+                if (foreignIcon != null) {
+                    Image(
+                        bitmap = foreignIcon,
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    Icon(Icons.Outlined.Language, null, tint = LimitsGradientEnd, modifier = Modifier.size(28.dp))
+                }
                 Text(
                     text = stringResource(R.string.home_limits_right),
                     color = TextPrimary,
                     fontSize = 13.sp,
-                    lineHeight = 17.sp
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
@@ -2710,21 +2694,30 @@ private fun HomeUsefulCard() {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(
-                        HomeUsefulTilesHorizontalSpacing,
+                        16.dp,
                         Alignment.CenterHorizontally
                     )
                 ) {
                     UsefulTile(
-                        Icons.Filled.SupportAgent,
-                        stringResource(R.string.home_useful_support),
+                        assetPath = HomeUsefulSupportAsset,
+                        label = stringResource(R.string.home_useful_support),
                         Modifier.weight(1f),
-                        iconTint = Color(0xFF3B82F6)
+                        tileHeight = 82.dp,
+                        iconSize = 30.dp
                     )
                     UsefulTile(
-                        Icons.Filled.QuestionMark,
-                        stringResource(R.string.home_useful_faq),
+                        assetPath = HomeUsefulQuestionsAsset,
+                        label = stringResource(R.string.home_useful_faq),
                         Modifier.weight(1f),
-                        iconTint = Color(0xFFA855F7)
+                        tileHeight = 82.dp,
+                        iconSize = 26.dp
+                    )
+                    UsefulTile(
+                        assetPath = HomeUsefulQrAsset,
+                        label = stringResource(R.string.home_useful_qr),
+                        Modifier.weight(1f),
+                        tileHeight = 82.dp,
+                        iconSize = 30.dp
                     )
                 }
                 Spacer(modifier = Modifier.height(HomeUsefulTilesRowSpacing))
@@ -2736,16 +2729,18 @@ private fun HomeUsefulCard() {
                     )
                 ) {
                     UsefulTile(
-                        Icons.Filled.ReceiptLong,
-                        stringResource(R.string.home_useful_statements),
+                        assetPath = HomeUsefulStatementsAsset,
+                        label = stringResource(R.string.home_useful_statements),
                         Modifier.weight(1f),
-                        iconTint = Color(0xFFEC4899)
+                        tileHeight = 82.dp,
+                        iconSize = 30.dp
                     )
                     UsefulTile(
-                        Icons.Outlined.Article,
-                        stringResource(R.string.home_useful_tariffs),
+                        assetPath = HomeUsefulTermsAsset,
+                        label = stringResource(R.string.home_useful_tariffs),
                         Modifier.weight(1f),
-                        iconTint = Color(0xFF22C55E)
+                        tileHeight = 82.dp,
+                        iconSize = 30.dp
                     )
                 }
             }
@@ -2768,13 +2763,13 @@ private fun RateRow(modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             RateCurrencyItem(
-                flagEmoji = "\uD83C\uDDFA\uD83C\uDDF8",
+                iconAsset = HomeUsdAsset,
                 title = stringResource(R.string.home_rate_usd_title),
                 values = stringResource(R.string.home_rate_usd_values),
                 modifier = Modifier.weight(1f)
             )
             RateCurrencyItem(
-                flagEmoji = "\uD83C\uDDEA\uD83C\uDDFA",
+                iconAsset = HomeEurAsset,
                 title = stringResource(R.string.home_rate_eur_title),
                 values = stringResource(R.string.home_rate_eur_values),
                 modifier = Modifier.weight(1f)
@@ -2785,11 +2780,12 @@ private fun RateRow(modifier: Modifier = Modifier) {
 
 @Composable
 private fun RateCurrencyItem(
-    flagEmoji: String,
+    iconAsset: String,
     title: String,
     values: String,
     modifier: Modifier = Modifier
 ) {
+    val iconBitmap = rememberAssetImageBitmap(iconAsset)
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
@@ -2801,11 +2797,14 @@ private fun RateCurrencyItem(
                 .background(KeypadButton),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = flagEmoji,
-                fontSize = 17.sp,
-                lineHeight = 19.sp
-            )
+            if (iconBitmap != null) {
+                Image(
+                    bitmap = iconBitmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
         Spacer(modifier = Modifier.width(6.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -2832,14 +2831,16 @@ private fun RateCurrencyItem(
 
 @Composable
 private fun UsefulTile(
-    icon: ImageVector,
+    assetPath: String,
     label: String,
     modifier: Modifier = Modifier,
-    iconTint: Color = AccentRed
+    tileHeight: androidx.compose.ui.unit.Dp = 82.dp,
+    iconSize: androidx.compose.ui.unit.Dp = 30.dp
 ) {
-        Surface(
+    val iconBitmap = rememberAssetImageBitmap(assetPath)
+    Surface(
         modifier = modifier
-            .height(105.dp)
+            .height(tileHeight)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -2854,15 +2855,22 @@ private fun UsefulTile(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(icon, null, tint = iconTint, modifier = Modifier.size(22.dp))
-            Spacer(modifier = Modifier.height(4.dp))
+            if (iconBitmap != null) {
+                Image(
+                    bitmap = iconBitmap,
+                    contentDescription = null,
+                    modifier = Modifier.size(iconSize),
+                    contentScale = ContentScale.Fit
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = label,
                 color = TextPrimary,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 lineHeight = 13.sp,
                 fontWeight = FontWeight.Medium,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
