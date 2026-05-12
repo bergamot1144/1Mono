@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,13 +38,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -54,13 +56,19 @@ import androidx.compose.ui.unit.sp
 import com.konvert.app.R
 
 private val JarTxnDetailBg = Color(0xFF121212)
-private val JarTxnDetailHeaderBlue = Color(0xFF6BA8E8)
-private val JarTxnDetailCardBg = Color(0xFF1C1C1E)
+private val JarTxnDetailHeaderBlue = Color(0xFF7DAFFE)
+private val JarTxnDetailCardBg = Color(0xFF262626)
 private val JarTxnDetailMuted = Color(0xFF8E8E93)
-private val JarTxnDetailIconGradStart = Color(0xFF4A7FE8)
-private val JarTxnDetailIconGradEnd = Color(0xFF9B6DFF)
+private val JarTxnDetailIconGradStart = Color(0xFF7469FB)
+private val JarTxnDetailIconGradEnd = Color(0xFF7BADFC)
 private val JarTxnDetailWalletCircle = Color(0xFF8B6BFF)
+private const val JarTxnTransferAsset = "operations_logos/transfer_purple.png"
 private const val JarTxnCatTransferAsset = "operations_logos/cat_transfer.png"
+private const val JarTxnWalletAsset = "operations_logos/Wallet2.png"
+private const val JarTxnLinkAsset = "operations_logos/Link.png"
+private const val JarTxnQuestionAsset = "operations_logos/Question.png"
+private const val JarTxnHeaderCoinsAsset = "operations_logos/coins_bg1.png"
+private const val JarTxnHeaderJarAsset = "operations_logos/jar_bg1.png"
 
 @Composable
 private fun rememberJarTransactionAssetBitmap(assetPath: String): ImageBitmap? {
@@ -81,7 +89,15 @@ internal fun JarTransactionDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val scroll = rememberScrollState()
+    val transferBitmap = rememberJarTransactionAssetBitmap(JarTxnTransferAsset)
     val catTransferBitmap = rememberJarTransactionAssetBitmap(JarTxnCatTransferAsset)
+    val walletBitmap = rememberJarTransactionAssetBitmap(JarTxnWalletAsset)
+    val linkBitmap = rememberJarTransactionAssetBitmap(JarTxnLinkAsset)
+    val questionBitmap = rememberJarTransactionAssetBitmap(JarTxnQuestionAsset)
+    val amountDisplay = remember(payload.amount) {
+        if (payload.amount.any { it == '₴' || it == '$' || it == '€' }) payload.amount else "${payload.amount} ₴"
+    }
+    val isLinkTransaction = payload.badge.contains("посил", ignoreCase = true)
     val headerBlue = JarTxnDetailHeaderBlue
     val pinkH = 210.dp
     val sheetInset = 78.dp
@@ -119,8 +135,13 @@ internal fun JarTransactionDetailScreen(
                     .fillMaxWidth()
                     .height(pinkH)
                     .background(headerBlue)
-                    .jarDetailHeaderBluePattern()
-            )
+            ) {
+                if (isLinkTransaction) {
+                    JarTransactionHeaderPattern(modifier = Modifier.fillMaxSize())
+                } else {
+                    JarTransactionDotPattern(modifier = Modifier.fillMaxSize())
+                }
+            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -128,109 +149,28 @@ internal fun JarTransactionDetailScreen(
                     .clip(RoundedCornerShape(topStart = sheetRadius, topEnd = sheetRadius))
                     .background(JarTxnDetailBg)
             ) {
-                Spacer(modifier = Modifier.height(44.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(payload.fromRes),
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    if (catTransferBitmap != null) {
-                        Image(
-                            bitmap = catTransferBitmap,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            contentScale = ContentScale.Fit
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(14.dp))
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = stringResource(payload.badgeRes),
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(badgeBrush)
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = stringResource(payload.dateTimeRes),
-                    color = JarTxnDetailMuted,
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                JarTransactionMainInfoBlock(
+                    payload = payload,
+                    amountDisplay = amountDisplay,
+                    fromIcon = if (isLinkTransaction) catTransferBitmap else transferBitmap,
+                    badgeBrush = badgeBrush,
+                    showSideLines = isLinkTransaction
                 )
-                Spacer(modifier = Modifier.height(20.dp))
-                Text(
-                    text = stringResource(payload.amountRes),
-                    color = Color.White,
-                    fontSize = 48.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.5).sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(28.dp))
-                Column(
+                Spacer(modifier = Modifier.height(if (isLinkTransaction) 22.dp else 28.dp))
+                JarTransactionBalanceCard(
+                    walletBitmap = walletBitmap,
+                    balance = payload.balance,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
-                        .clip(RoundedCornerShape(18.dp))
+                )
+                Spacer(modifier = Modifier.height(if (isLinkTransaction) 18.dp else 0.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .background(JarTxnDetailCardBg)
+                        .padding(bottom = 160.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(JarTxnDetailWalletCircle),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.AccountBalanceWallet,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.jar_detail_balance_label),
-                                color = JarTxnDetailMuted,
-                                fontSize = 13.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = stringResource(payload.balanceRes),
-                                color = Color.White,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = Color.White.copy(alpha = 0.08f),
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -239,31 +179,38 @@ internal fun JarTransactionDetailScreen(
                                 indication = null,
                                 onClick = { }
                             )
-                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                            .padding(horizontal = 28.dp, vertical = 18.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
-                            contentDescription = null,
-                            tint = Color.White.copy(0.9f),
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
+                        if (questionBitmap != null) {
+                            Image(
+                                bitmap = questionBitmap,
+                                contentDescription = null,
+                                modifier = Modifier.size(42.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
+                                contentDescription = null,
+                                tint = Color.White.copy(0.9f),
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(40.dp))
                         Text(
                             text = stringResource(R.string.jar_detail_ask_question),
                             color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
+                            fontSize = if (isLinkTransaction) 18.sp else 16.sp,
+                            fontWeight = if (isLinkTransaction) FontWeight.Normal else FontWeight.Medium
                         )
                     }
                     HorizontalDivider(
                         thickness = 1.dp,
-                        color = Color.White.copy(alpha = 0.08f),
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        color = Color.White.copy(alpha = 0.12f),
+                        modifier = Modifier.padding(start = if (isLinkTransaction) 126.dp else 16.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
-                Spacer(modifier = Modifier.height(32.dp))
             }
 
             IconButton(
@@ -290,35 +237,239 @@ internal fun JarTransactionDetailScreen(
                     .background(iconRingBrush),
                 contentAlignment = Alignment.Center
             ) {
+                if (linkBitmap != null) {
+                    Image(
+                        bitmap = linkBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Link,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun JarTransactionMainInfoBlock(
+    payload: JarTxnDetailPayload,
+    amountDisplay: String,
+    fromIcon: ImageBitmap?,
+    badgeBrush: Brush,
+    showSideLines: Boolean
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(JarTxnDetailCardBg)
+            .padding(top = 44.dp, bottom = 28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = payload.fromLabel,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            if (fromIcon != null) {
+                Image(
+                    bitmap = fromIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(14.dp))
+        JarTransactionBadgeRow(
+            text = payload.badge,
+            brush = badgeBrush,
+            showSideLines = showSideLines
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = payload.dateTime,
+            color = JarTxnDetailMuted,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = amountDisplay,
+            color = Color.White,
+            fontSize = 48.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.5).sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun JarTransactionBadgeRow(
+    text: String,
+    brush: Brush,
+    showSideLines: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = if (showSideLines) 28.dp else 0.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (showSideLines) {
+            HorizontalDivider(
+                modifier = Modifier.weight(1f),
+                thickness = 1.dp,
+                color = Color.White.copy(alpha = 0.14f)
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+        }
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .clip(RoundedCornerShape(18.dp))
+                .background(brush)
+                .padding(horizontal = 18.dp, vertical = if (showSideLines) 4.dp else 8.dp)
+        )
+        if (showSideLines) {
+            Spacer(modifier = Modifier.width(14.dp))
+            HorizontalDivider(
+                modifier = Modifier.weight(1f),
+                thickness = 1.dp,
+                color = Color.White.copy(alpha = 0.14f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun JarTransactionBalanceCard(
+    walletBitmap: ImageBitmap?,
+    balance: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(JarTxnDetailCardBg)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(JarTxnDetailWalletCircle),
+            contentAlignment = Alignment.Center
+        ) {
+            if (walletBitmap != null) {
+                Image(
+                    bitmap = walletBitmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
                 Icon(
-                    imageVector = Icons.Outlined.Link,
+                    imageVector = Icons.Outlined.AccountBalanceWallet,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.jar_detail_balance_label),
+                color = JarTxnDetailMuted,
+                fontSize = 13.sp,
+                lineHeight = 15.sp
+            )
+            Text(
+                text = balance,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Normal
+            )
+        }
+    }
+}
+
+@Composable
+private fun JarTransactionHeaderPattern(modifier: Modifier = Modifier) {
+    val coinsBitmap = rememberJarTransactionAssetBitmap(JarTxnHeaderCoinsAsset)
+    val jarBitmap = rememberJarTransactionAssetBitmap(JarTxnHeaderJarAsset)
+    if (coinsBitmap == null || jarBitmap == null) return
+
+    BoxWithConstraints(modifier = modifier.clipToBounds()) {
+        val iconSize = 16.dp
+        val horizontalStep = 52.dp
+        val verticalStep = 30.dp
+        val columns = (maxWidth.value / horizontalStep.value).toInt() + 4
+        val rows = (maxHeight.value / verticalStep.value).toInt() + 4
+
+        for (row in 0 until rows) {
+            for (column in 0 until columns) {
+                val bitmap = if ((row + column) % 2 == 0) coinsBitmap else jarBitmap
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .offset(
+                            x = horizontalStep * column.toFloat() - 18.dp +
+                                if (row % 2 == 0) 0.dp else horizontalStep / 2,
+                            y = verticalStep * row.toFloat() - 16.dp
+                        )
+                        .size(iconSize)
+                        .graphicsLayer(rotationZ = -45f, alpha = 0.22f),
+                    contentScale = ContentScale.Fit
                 )
             }
         }
     }
 }
 
-private fun Modifier.jarDetailHeaderBluePattern(): Modifier = drawWithContent {
-    drawContent()
-    val step = 32.dp.toPx()
-    val dotR = 2.8.dp.toPx()
-    var y = step * 0.4f
-    while (y < size.height + step) {
-        var x = -step * 0.15f
-        var row = 0
-        while (x < size.width + step) {
-            val ox = if (row % 2 == 0) 0f else step * 0.5f
-            drawCircle(
-                color = Color.White.copy(alpha = 0.09f),
-                radius = dotR,
-                center = Offset(x + ox, y)
-            )
-            x += step
-            row++
+@Composable
+private fun JarTransactionDotPattern(modifier: Modifier = Modifier) {
+    BoxWithConstraints(modifier = modifier.clipToBounds()) {
+        val step = 32.dp
+        val columns = (maxWidth.value / step.value).toInt() + 3
+        val rows = (maxHeight.value / (step.value * 0.5f)).toInt() + 3
+        for (row in 0 until rows) {
+            for (column in 0 until columns) {
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = step * column.toFloat() - 4.dp +
+                                if (row % 2 == 0) 0.dp else step / 2,
+                            y = step * row.toFloat() * 0.5f + 8.dp
+                        )
+                        .size(5.6.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.09f))
+                )
+            }
         }
-        y += step * 0.5f
     }
 }

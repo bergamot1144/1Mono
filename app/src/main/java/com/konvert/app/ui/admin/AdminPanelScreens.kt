@@ -75,6 +75,7 @@ import com.konvert.app.admin.AppAdminController
 import com.konvert.app.admin.CardAdminConfig
 import com.konvert.app.admin.CardOperationAdminConfig
 import com.konvert.app.admin.JarAdminConfig
+import com.konvert.app.admin.JarTopUpTransactionAdminConfig
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.max
@@ -87,6 +88,11 @@ private val AdminGreen = Color(0xFF0A8433)
 private val AdminLabel = Color(0xFFAEAEB2)
 private val AdminCardBg = Color(0xFF242424)
 private val AdminAvatarCircleBg = Color(0xFF333333)
+
+enum class JarAdminTransactionsKind {
+    CardNumber,
+    Link
+}
 
 @Composable
 fun AdminMainPanel(
@@ -523,6 +529,7 @@ fun JarAdminPanel(
     controller: AppAdminController,
     jarIndex: Int,
     onBack: () -> Unit,
+    onOpenTransactionsSettings: (Int, JarAdminTransactionsKind) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val jar = controller.state.jarOrDefault(jarIndex)
@@ -667,7 +674,7 @@ fun JarAdminPanel(
                 onValueChange = { statByNumber = it }
             )
             Button(
-                onClick = { },
+                onClick = { onOpenTransactionsSettings(jarIndex, JarAdminTransactionsKind.CardNumber) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AdminBlue)
@@ -680,7 +687,7 @@ fun JarAdminPanel(
                 onValueChange = { statByLink = it }
             )
             Button(
-                onClick = { },
+                onClick = { onOpenTransactionsSettings(jarIndex, JarAdminTransactionsKind.Link) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AdminBlue)
@@ -707,8 +714,200 @@ fun JarAdminPanel(
                             statByLink = statByLink,
                             statMonoDisplay = statMono,
                             statFlagDisplay = statFlag,
-                            statGlobeDisplay = statGlobe
+                            statGlobeDisplay = statGlobe,
+                            cardNumberTransactions = jar.cardNumberTransactions,
+                            linkTransactions = jar.linkTransactions
                         )
+                    )
+                    onBack()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AdminGreen)
+            ) {
+                Text(stringResource(R.string.admin_jar_confirm), color = Color.White, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+fun JarTransactionsAdminPanel(
+    controller: AppAdminController,
+    jarIndex: Int,
+    kind: JarAdminTransactionsKind,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val jar = controller.state.jarOrDefault(jarIndex)
+    val defaultSignature = when (kind) {
+        JarAdminTransactionsKind.CardNumber -> "Номер картки банки"
+        JarAdminTransactionsKind.Link -> "cat_transfer.png"
+    }
+    var transactions by remember(jarIndex, kind) {
+        mutableStateOf(
+            when (kind) {
+                JarAdminTransactionsKind.CardNumber -> jar.cardNumberTransactions
+                JarAdminTransactionsKind.Link -> jar.linkTransactions
+            }
+        )
+    }
+    LaunchedEffect(jarIndex, kind, controller.state.jars) {
+        val current = controller.state.jarOrDefault(jarIndex)
+        transactions = when (kind) {
+            JarAdminTransactionsKind.CardNumber -> current.cardNumberTransactions
+            JarAdminTransactionsKind.Link -> current.linkTransactions
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(AdminBg)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = stringResource(R.string.jar_bank_back_cd),
+                    tint = Color.White
+                )
+            }
+            Text(
+                text = when (kind) {
+                    JarAdminTransactionsKind.CardNumber -> "Транзакції за номером картки"
+                    JarAdminTransactionsKind.Link -> "Транзакції за посиланням"
+                },
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            transactions.forEachIndexed { index, transaction ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(AdminCardBg)
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Транзакція ${index + 1}",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    AdminLabeledField(
+                        label = "Ім'я/джерело",
+                        value = transaction.senderTitle,
+                        onValueChange = { value ->
+                            transactions = transactions.mapIndexed { i, item ->
+                                if (i == index) item.copy(senderTitle = value) else item
+                            }
+                        }
+                    )
+                    AdminLabeledField(
+                        label = "Підпис під транзакцією",
+                        value = transaction.signature,
+                        onValueChange = { value ->
+                            transactions = transactions.mapIndexed { i, item ->
+                                if (i == index) item.copy(signature = value) else item
+                            }
+                        }
+                    )
+                    AdminLabeledField(
+                        label = "Сума",
+                        value = transaction.amount,
+                        onValueChange = { value ->
+                            transactions = transactions.mapIndexed { i, item ->
+                                if (i == index) item.copy(amount = value) else item
+                            }
+                        }
+                    )
+                    AdminLabeledField(
+                        label = "Дата у списку",
+                        value = transaction.dateLabel,
+                        onValueChange = { value ->
+                            transactions = transactions.mapIndexed { i, item ->
+                                if (i == index) item.copy(dateLabel = value) else item
+                            }
+                        }
+                    )
+                    AdminLabeledField(
+                        label = "Дата і час у деталях",
+                        value = transaction.dateTimeDisplay,
+                        onValueChange = { value ->
+                            transactions = transactions.mapIndexed { i, item ->
+                                if (i == index) item.copy(dateTimeDisplay = value) else item
+                            }
+                        }
+                    )
+                    AdminLabeledField(
+                        label = "Залишок після транзакції",
+                        value = transaction.balanceAfter,
+                        onValueChange = { value ->
+                            transactions = transactions.mapIndexed { i, item ->
+                                if (i == index) item.copy(balanceAfter = value) else item
+                            }
+                        }
+                    )
+                    Button(
+                        onClick = { transactions = transactions.filterIndexed { i, _ -> i != index } },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF992222))
+                    ) {
+                        Text("Видалити транзакцію", color = Color.White)
+                    }
+                }
+            }
+            Button(
+                onClick = {
+                    transactions = transactions + JarTopUpTransactionAdminConfig(
+                        senderTitle = if (kind == JarAdminTransactionsKind.Link) "Від:" else "З Білої картки",
+                        signature = defaultSignature,
+                        amount = "150 ₴",
+                        dateLabel = "Сьогодні",
+                        dateTimeDisplay = "12 травня 2026, 13:13",
+                        balanceAfter = "150 ₴"
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AdminBlue)
+            ) {
+                Text("Додати транзакцію", color = Color.White)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    val clean = transactions.filter {
+                        it.senderTitle.isNotBlank() || it.amount.isNotBlank() || it.signature.isNotBlank()
+                    }
+                    controller.updateJar(
+                        jarIndex,
+                        when (kind) {
+                            JarAdminTransactionsKind.CardNumber ->
+                                controller.state.jarOrDefault(jarIndex).copy(cardNumberTransactions = clean)
+                            JarAdminTransactionsKind.Link ->
+                                controller.state.jarOrDefault(jarIndex).copy(linkTransactions = clean)
+                        }
                     )
                     onBack()
                 },

@@ -115,6 +115,7 @@
     <string name="jar_stats_card_link_amount">46 371 ₴</string>
     <string name="jar_stats_card_regular">Регулярні відрахування</string>
     <string name="jar_stats_card_regular_amount">5 407.84 ₴</string>
+    <string name="jar_stats_card_direct">Прямі\nпоповнення</string>
     <string name="jar_stats_card_other">Інші</string>
     <string name="jar_stats_card_other_amount">…</string>
     <string name="jar_topups_title">Ваші поповнення</string>

@@ -110,6 +110,15 @@ private fun rememberBackspaceBitmap(): ImageBitmap? {
     }
 }
 
+@Composable
+private fun rememberPinAvatarBitmap(path: String?): ImageBitmap? {
+    return remember(path) {
+        path
+            ?.takeIf { it.isNotBlank() }
+            ?.let { BitmapFactory.decodeFile(it)?.asImageBitmap() }
+    }
+}
+
 private fun Bitmap.cropBackspaceIcon(): Bitmap {
     val left = (width * 0.31f).toInt().coerceIn(0, width - 1)
     val top = (height * 0.34f).toInt().coerceIn(0, height - 1)
@@ -122,6 +131,8 @@ private fun Bitmap.cropBackspaceIcon(): Bitmap {
 fun PinLockScreen(onUnlocked: () -> Unit) {
     var pin by remember { mutableStateOf("") }
     var showError by remember { mutableStateOf(false) }
+    val admin = LocalAppAdmin.current
+    val avatarBitmap = rememberPinAvatarBitmap(admin?.state?.profileAvatarPath)
 
     LaunchedEffect(pin, showError) {
         if (pin.length == 4) {
@@ -152,15 +163,23 @@ fun PinLockScreen(onUnlocked: () -> Unit) {
                 .background(AvatarPlaceholder),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Outlined.Person,
-                contentDescription = stringResource(R.string.pin_avatar_content_description),
-                tint = TextMuted,
-                modifier = Modifier.size(40.dp)
-            )
+            if (avatarBitmap != null) {
+                Image(
+                    bitmap = avatarBitmap,
+                    contentDescription = stringResource(R.string.pin_avatar_content_description),
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.Person,
+                    contentDescription = stringResource(R.string.pin_avatar_content_description),
+                    tint = TextMuted,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(20.dp))
-        val admin = LocalAppAdmin.current
         val greetName = admin?.state?.mainFirstName?.takeIf { it.isNotBlank() }
             ?: stringResource(R.string.pin_user_display_name)
         Text(

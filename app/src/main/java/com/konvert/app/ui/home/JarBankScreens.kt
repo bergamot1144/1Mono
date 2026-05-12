@@ -1,12 +1,20 @@
 package com.konvert.app.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -55,7 +63,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -66,6 +78,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -73,8 +86,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,12 +99,15 @@ import androidx.compose.ui.unit.sp
 import com.konvert.app.R
 import com.konvert.app.admin.JarAdminConfig
 import com.konvert.app.admin.LocalAppAdmin
+import kotlinx.coroutines.delay
 
 /** Категорія поповнення в блоці «Ваші поповнення». */
 internal enum class JarTopUpCategory {
     OneTime,
     RoundBalance,
-    RoundExpense
+    RoundExpense,
+    Link,
+    CardNumber
 }
 
 /** Повноекранний флоу «Банка» з вкладки Накопичення. */
@@ -114,16 +132,25 @@ private val JarActionCircleBg = Color(0xFF2C2C2E)
 private val JarSquircleStart = Color(0xFFD64085)
 private val JarSquircleEnd = Color(0xFFFCA471)
 private val JarDividerLine = Color.White.copy(alpha = 0.12f)
-private val JarMiniStatCardBg = Color(0xFF1C1C1E)
+private val JarMiniStatCardBg = Color(0xFF262626)
+private val JarMiniStatCardHoverBg = Color(0xFF343434)
 private val JarMonoLinkRed = Color(0xFFFF6568)
+private val JarTopupTextColor = Color(0xFFE4E4E4)
 
 private val ShareScreenBg = Color(0xFF121212)
-private val ShareCardBg = Color(0xFF1C1C1E)
+private val ShareCardBg = Color(0xFF262626)
 private val ShareMuted = Color(0xFF8E8E93)
-private val ShareInnerButtonBg = Color(0xFF2C2C2E)
+private val ShareInnerButtonBg = Color(0xFF393939)
+private val ShareTitleText = Color(0xFFE0E0E0)
+private val SharePrimaryText = Color(0xFFE3E3E3)
+private val ShareValueText = Color(0xFF818181)
+private val ShareButtonText = Color(0xFFE6E6E6)
+private val ShareCopiedToastBg = Color(0xFF5EB76E)
 
 private const val OperationsLogosPath = "operations_logos"
 private const val MainJarAsset = "$OperationsLogosPath/main_jar.png"
+private const val EmptyJarAsset = "$OperationsLogosPath/jar_empty.png"
+private const val HalfJarAsset = "$OperationsLogosPath/jar_half.png"
 private const val JarHeaderIconAsset = "$OperationsLogosPath/jar1.png"
 private const val JarActionShareAsset = "$OperationsLogosPath/share_jar.png"
 private const val JarActionTopUpAsset = "$OperationsLogosPath/replenish_jar.png"
@@ -137,6 +164,26 @@ private const val JarHeaderCoinsBgAsset = "$OperationsLogosPath/coins_bg1.png"
 private const val JarHeaderJarBgAsset = "$OperationsLogosPath/jar_bg1.png"
 private const val JarStatFlagAsset = "$OperationsLogosPath/prapor.png"
 private const val JarStatEarthAsset = "$OperationsLogosPath/earth.png"
+private const val JarStatForLinkAsset = "$OperationsLogosPath/forlink.png"
+private const val JarStatRegularLinkAsset = "$OperationsLogosPath/regular_link.png"
+private const val JarStatLinkPageAsset = "$OperationsLogosPath/Link.png"
+private const val JarStatCatAsset = "$OperationsLogosPath/cat_icon.png"
+private const val JarTopupForwardTransfersAsset = "$OperationsLogosPath/forward_transfers.png"
+private const val JarTopupRazoviAsset = "$OperationsLogosPath/razovi.png"
+private const val JarTopupRoundBalanceAsset = "$OperationsLogosPath/okrugl.png"
+private const val JarTopupRoundExpenseAsset = "$OperationsLogosPath/okrugl_trat.png"
+private const val JarQrAsset = "$OperationsLogosPath/jar_qr.png"
+private const val JarStoriesAsset = "$OperationsLogosPath/strories.png"
+private const val JarCardNumberAsset = "$OperationsLogosPath/jar_card_number.png"
+private const val JarLinkPurpleAsset = "$OperationsLogosPath/jar_link_purple.png"
+private const val JarReqAsset = "$OperationsLogosPath/jar_req.png"
+private const val JarShareNegateAsset = "$OperationsLogosPath/share_negate.png"
+private const val JarCopyAsset = "$OperationsLogosPath/copy.png"
+private const val JarTransferPurpleAsset = "$OperationsLogosPath/transfer_purple.png"
+private const val JarWalletPurpleAsset = "$OperationsLogosPath/wallet_purple.png"
+private const val JarSplitAsset = "$OperationsLogosPath/split.png"
+private const val JarRepeatAsset = "$OperationsLogosPath/repeat.png"
+private const val JarAppleAsset = "$OperationsLogosPath/Apple.png"
 private val MonoLogoCandidates = listOf(
     "$OperationsLogosPath/mini_mono.png",
     "$OperationsLogosPath/monobank.png",
@@ -158,11 +205,29 @@ private fun rememberFirstJarAssetBitmap(paths: List<String>): ImageBitmap? {
     }
 }
 
+private fun jarDisplayNumber(value: String): Double {
+    val normalized = value
+        .filter { it.isDigit() || it == '.' || it == ',' || it == '-' }
+        .replace(",", ".")
+    return normalized.toDoubleOrNull() ?: 0.0
+}
+
+private fun jarHeroAssetFor(jar: JarAdminConfig): String {
+    val balance = jarDisplayNumber(jar.balanceDisplay)
+    val target = jarDisplayNumber(jar.targetDisplay)
+    return when {
+        balance <= 0.0 -> EmptyJarAsset
+        target > 0.0 && balance >= target * 0.5 && balance < target -> HalfJarAsset
+        else -> MainJarAsset
+    }
+}
+
 @Composable
 internal fun JarBankDetailScreen(
     jarIndex: Int,
     onBack: () -> Unit,
     onShareJar: () -> Unit,
+    onOpenStatsCategory: (JarTopUpCategory) -> Unit = {},
     onOpenTopUpCategory: (JarTopUpCategory) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -171,9 +236,10 @@ internal fun JarBankDetailScreen(
     val jarHeaderIcon = rememberFirstJarAssetBitmap(listOf(JarHeaderIconAsset))
     val admin = LocalAppAdmin.current
     val jar = admin?.state?.jarOrDefault(jarIndex) ?: JarAdminConfig()
-    val pinkHeaderHeight = 210.dp
-    val darkSheetTopInset = 78.dp
-    val sheetTopRadius = 28.dp
+    val pinkHeaderHeight = 194.dp
+    val darkSheetTopInset = 70.dp
+    val sheetTopRadius = 22.dp
+    val darkSheetSideBleed = 6.dp
     val statusBarTop = with(LocalDensity.current) {
         WindowInsets.statusBars.getTop(this).toDp()
     }
@@ -193,13 +259,17 @@ internal fun JarBankDetailScreen(
         ) {
             JarHeaderBackgroundPattern(modifier = Modifier.fillMaxSize())
         }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = sheetTop)
-                .clip(RoundedCornerShape(topStart = sheetTopRadius, topEnd = sheetTopRadius))
-                .background(JarScreenBg)
-        )
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .width(maxWidth + darkSheetSideBleed * 2)
+                    .height(maxHeight - sheetTop)
+                    .align(Alignment.TopCenter)
+                    .offset(y = sheetTop)
+                    .clip(RoundedCornerShape(topStart = sheetTopRadius, topEnd = sheetTopRadius))
+                    .background(JarScreenBg)
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -246,14 +316,15 @@ internal fun JarBankDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .height(280.dp),
+                        .padding(horizontal = 8.dp)
+                        .height(304.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     JarHeroSquircleWithGraphic(
+                        jar = jar,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(270.dp)
+                            .height(296.dp)
                     )
                 }
 
@@ -282,7 +353,11 @@ internal fun JarBankDetailScreen(
 
                     Spacer(modifier = Modifier.height(22.dp))
 
-                    JarStatsMiniCardsRow()
+                    JarStatsMiniCardsRow(
+                        linkAmount = jar.statByLink,
+                        cardNumberAmount = jar.statByNumber,
+                        onOpenCategory = onOpenStatsCategory
+                    )
 
                     Spacer(modifier = Modifier.height(28.dp))
 
@@ -309,8 +384,8 @@ internal fun JarBankDetailScreen(
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .offset(y = sheetTop - 28.dp)
-                .size(56.dp)
+                .offset(y = sheetTop - 32.dp)
+                .size(64.dp)
                 .shadow(8.dp, CircleShape, ambientColor = Color.Black.copy(0.35f))
                 .clip(CircleShape)
                 .then(
@@ -379,8 +454,11 @@ private fun JarHeaderBackgroundPattern(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun JarHeroSquircleWithGraphic(modifier: Modifier = Modifier) {
-    val mainJarBitmap = rememberFirstJarAssetBitmap(listOf(MainJarAsset))
+private fun JarHeroSquircleWithGraphic(
+    jar: JarAdminConfig,
+    modifier: Modifier = Modifier
+) {
+    val mainJarBitmap = rememberFirstJarAssetBitmap(listOf(jarHeroAssetFor(jar), MainJarAsset))
     if (mainJarBitmap != null) {
         Image(
             bitmap = mainJarBitmap,
@@ -575,6 +653,25 @@ private fun JarActionCell(
 }
 
 @Composable
+private fun JarAssetIcon(
+    assetPath: String,
+    modifier: Modifier = Modifier,
+    fallback: (@Composable () -> Unit)? = null
+) {
+    val bitmap = rememberFirstJarAssetBitmap(listOf(assetPath))
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            contentDescription = null,
+            modifier = modifier,
+            contentScale = ContentScale.Fit
+        )
+    } else {
+        fallback?.invoke()
+    }
+}
+
+@Composable
 private fun JarActionIcon(
     spec: JarActionSpec,
     bitmap: ImageBitmap?
@@ -617,9 +714,11 @@ private fun JarStatisticsBlock(
         )
         Spacer(modifier = Modifier.height(14.dp))
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             JarStatMono(amount = monoAmount, monoLogo = monoLogo)
             JarStatDivider()
@@ -634,33 +733,46 @@ private data class JarMiniStatCardSpec(
     val icon: ImageVector,
     val iconCircle: Color,
     val titleRes: Int,
-    val amountRes: Int,
-    val width: Dp = 152.dp
+    val amount: String,
+    val width: Dp = 152.dp,
+    val assetPath: String? = null,
+    val category: JarTopUpCategory? = null
 )
 
 @Composable
-private fun JarStatsMiniCardsRow(modifier: Modifier = Modifier) {
-    val cards = remember {
+private fun JarStatsMiniCardsRow(
+    linkAmount: String,
+    cardNumberAmount: String,
+    onOpenCategory: (JarTopUpCategory) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val regularAmount = stringResource(R.string.jar_stats_card_regular_amount)
+    val cards = remember(linkAmount, cardNumberAmount, regularAmount) {
         listOf(
             JarMiniStatCardSpec(
                 icon = Icons.Outlined.Link,
                 iconCircle = Color(0xFF0A84FF),
                 titleRes = R.string.jar_stats_card_link,
-                amountRes = R.string.jar_stats_card_link_amount
+                amount = linkAmount,
+                assetPath = JarStatForLinkAsset,
+                category = JarTopUpCategory.Link
             ),
             JarMiniStatCardSpec(
                 icon = Icons.Outlined.Link,
                 iconCircle = Color(0xFFE5656A),
                 titleRes = R.string.jar_stats_card_regular,
-                amountRes = R.string.jar_stats_card_regular_amount,
-                width = 168.dp
+                amount = regularAmount,
+                width = 168.dp,
+                assetPath = JarStatRegularLinkAsset
             ),
             JarMiniStatCardSpec(
                 icon = Icons.Outlined.Savings,
                 iconCircle = Color(0xFFFFCC00),
-                titleRes = R.string.jar_stats_card_other,
-                amountRes = R.string.jar_stats_card_other_amount,
-                width = 96.dp
+                titleRes = R.string.jar_stats_card_direct,
+                amount = cardNumberAmount,
+                width = 152.dp,
+                assetPath = JarTopupForwardTransfersAsset,
+                category = JarTopUpCategory.CardNumber
             )
         )
     }
@@ -674,53 +786,90 @@ private fun JarStatsMiniCardsRow(modifier: Modifier = Modifier) {
             items = cards,
             key = { it.titleRes }
         ) { spec ->
-            JarMiniStatCard(spec = spec)
+            JarMiniStatCard(
+                spec = spec,
+                onClick = { spec.category?.let(onOpenCategory) }
+            )
         }
     }
 }
 
 @Composable
-private fun JarMiniStatCard(spec: JarMiniStatCardSpec) {
+private fun JarMiniStatCard(
+    spec: JarMiniStatCardSpec,
+    onClick: () -> Unit
+) {
+    val iconBitmap = rememberFirstJarAssetBitmap(spec.assetPath?.let(::listOf) ?: emptyList())
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val cardBg = if (pressed || hovered) JarMiniStatCardHoverBg else JarMiniStatCardBg
     Column(
         modifier = Modifier
             .width(spec.width)
+            .height(170.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(JarMiniStatCardBg)
+            .background(cardBg)
+            .hoverable(interactionSource)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 indication = null,
-                onClick = { }
+                onClick = onClick
             )
-            .padding(horizontal = 14.dp, vertical = 14.dp)
+            .padding(horizontal = 14.dp, vertical = 16.dp)
     ) {
         Box(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(spec.iconCircle),
+                .then(
+                    if (iconBitmap == null) {
+                        Modifier.background(spec.iconCircle)
+                    } else {
+                        Modifier
+                    }
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = spec.icon,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(22.dp)
+            if (iconBitmap != null) {
+                Image(
+                    bitmap = iconBitmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    imageVector = spec.icon,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                text = stringResource(spec.titleRes),
+                color = Color.White,
+                fontSize = 15.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Start,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
         }
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.weight(1f))
         Text(
-            text = stringResource(spec.titleRes),
-            color = JarCaptionMuted,
-            fontSize = 13.sp,
-            lineHeight = 16.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = stringResource(spec.amountRes),
+            text = spec.amount,
             color = Color.White,
-            fontSize = 20.sp,
+            fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.2).sp
         )
@@ -744,8 +893,9 @@ private fun JarYourTopUpsSection(
             Text(
                 text = stringResource(R.string.jar_topups_title),
                 color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = 22.sp,
+                lineHeight = 26.sp,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
             Text(
@@ -766,12 +916,14 @@ private fun JarYourTopUpsSection(
         Text(
             text = stringResource(R.string.jar_topups_subtitle),
             color = JarCaptionMuted,
-            fontSize = 13.sp
+            fontSize = 16.sp,
+            lineHeight = 20.sp
         )
         Spacer(modifier = Modifier.height(14.dp))
         JarTopupRow(
             circleColor = Color(0xFF0A84FF),
             icon = Icons.Outlined.South,
+            assetPath = JarTopupRazoviAsset,
             title = stringResource(R.string.jar_topup_onetime_title),
             subtitle = stringResource(R.string.jar_topup_onetime_sub),
             amount = stringResource(R.string.jar_topup_onetime_amount),
@@ -781,6 +933,7 @@ private fun JarYourTopUpsSection(
         JarTopupRow(
             circleColor = Color(0xFFFF9500),
             icon = Icons.Outlined.CreditCard,
+            assetPath = JarTopupRoundBalanceAsset,
             title = stringResource(R.string.jar_topup_round_balance_title),
             subtitle = stringResource(R.string.jar_topup_round_balance_sub),
             amount = stringResource(R.string.jar_topup_round_balance_amount),
@@ -790,6 +943,7 @@ private fun JarYourTopUpsSection(
         JarTopupRow(
             circleColor = Color(0xFFAF52DE),
             icon = Icons.Outlined.FastForward,
+            assetPath = JarTopupRoundExpenseAsset,
             title = stringResource(R.string.jar_topup_round_expense_title),
             subtitle = stringResource(R.string.jar_topup_round_expense_sub),
             amount = stringResource(R.string.jar_topup_round_expense_amount),
@@ -805,8 +959,10 @@ private fun JarTopupRow(
     title: String,
     subtitle: String,
     amount: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    assetPath: String? = null
 ) {
+    val iconBitmap = rememberFirstJarAssetBitmap(assetPath?.let(::listOf) ?: emptyList())
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -823,36 +979,53 @@ private fun JarTopupRow(
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(circleColor),
+                .then(
+                    if (iconBitmap == null) {
+                        Modifier.background(circleColor)
+                    } else {
+                        Modifier
+                    }
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(22.dp)
-            )
+            if (iconBitmap != null) {
+                Image(
+                    bitmap = iconBitmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
+                color = JarTopupTextColor,
+                fontSize = 18.sp,
+                lineHeight = 21.sp,
+                fontWeight = FontWeight.Normal
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 color = JarCaptionMuted,
-                fontSize = 13.sp
+                fontSize = 14.sp
             )
         }
         Text(
             text = amount,
-            color = Color.White,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium
+            color = JarTopupTextColor,
+            fontSize = 17.sp,
+            lineHeight = 21.sp,
+            fontWeight = FontWeight.Normal
         )
     }
 }
@@ -1004,7 +1177,7 @@ internal fun JarBankShareScreen(
         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
             Text(
                 text = stringResource(R.string.jar_share_title),
-                color = Color.White,
+                color = ShareTitleText,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 lineHeight = 32.sp
@@ -1017,44 +1190,50 @@ internal fun JarBankShareScreen(
                 fontWeight = FontWeight.Normal
             )
         }
-        Spacer(modifier = Modifier.height(22.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             ShareTopCard(
                 modifier = Modifier.weight(1f),
-                iconBrush = Brush.linearGradient(
-                    listOf(Color(0xFFFFA040), Color(0xFFFF3070), Color(0xFF7B5CFF)),
-                    start = Offset.Zero,
-                    end = Offset(120f, 120f)
-                ),
-                icon = { Icon(Icons.Outlined.Add, null, tint = Color.White, modifier = Modifier.size(26.dp)) },
+                icon = {
+                    JarAssetIcon(
+                        assetPath = JarStoriesAsset,
+                        modifier = Modifier.fillMaxSize(),
+                        fallback = { Icon(Icons.Outlined.Add, null, tint = Color.White, modifier = Modifier.size(26.dp)) }
+                    )
+                },
                 label = stringResource(R.string.jar_share_story_template)
             )
             ShareTopCard(
                 modifier = Modifier.weight(1f),
-                iconBrush = Brush.linearGradient(listOf(Color(0xFF0A84FF), Color(0xFF0A84FF))),
                 icon = {
-                    Icon(
-                        Icons.Outlined.QrCode2,
-                        null,
-                        tint = Color.White,
-                        modifier = Modifier.size(26.dp)
+                    JarAssetIcon(
+                        assetPath = JarQrAsset,
+                        modifier = Modifier.fillMaxSize(),
+                        fallback = {
+                            Icon(
+                                Icons.Outlined.QrCode2,
+                                null,
+                                tint = Color.White,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
                     )
                 },
                 label = stringResource(R.string.jar_share_qr)
             )
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         ShareRequisitesCard(
             linkValue = jar.jarLink,
             cardValue = jar.cardNumber,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         ShareDocRow(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
@@ -1063,7 +1242,6 @@ internal fun JarBankShareScreen(
 
 @Composable
 private fun ShareTopCard(
-    iconBrush: Brush,
     icon: @Composable () -> Unit,
     label: String,
     modifier: Modifier = Modifier
@@ -1077,14 +1255,13 @@ private fun ShareTopCard(
                 indication = null,
                 onClick = { }
             )
-            .padding(horizontal = 14.dp, vertical = 18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 24.dp),
+        horizontalAlignment = Alignment.Start
     ) {
         Box(
             modifier = Modifier
-                .size(52.dp)
-                .clip(CircleShape)
-                .background(iconBrush),
+                .size(46.dp)
+                .clip(CircleShape),
             contentAlignment = Alignment.Center
         ) {
             icon()
@@ -1092,11 +1269,12 @@ private fun ShareTopCard(
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = label,
-            color = Color.White,
+            color = Color(0xFFD8D8D8),
             fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-            lineHeight = 18.sp
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Start,
+            lineHeight = 17.sp,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
@@ -1107,67 +1285,114 @@ private fun ShareRequisitesCard(
     cardValue: String,
     modifier: Modifier = Modifier
 ) {
-    val linkBrush = remember { Brush.linearGradient(listOf(Color(0xFF6B5CFF), Color(0xFF5B4DFF))) }
-    Column(
+    val clipboard = LocalClipboardManager.current
+    var copiedMessage by remember { mutableStateOf<String?>(null) }
+    var copiedVersion by remember { mutableStateOf(0) }
+
+    LaunchedEffect(copiedVersion) {
+        if (copiedVersion > 0) {
+            delay(1800)
+            copiedMessage = null
+        }
+    }
+
+    fun copyValue(value: String, message: String) {
+        clipboard.setText(AnnotatedString(value))
+        copiedMessage = message
+        copiedVersion += 1
+    }
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(ShareCardBg)
-            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 14.dp)
     ) {
-        Text(
-            text = stringResource(R.string.jar_share_req_section),
-            color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        ShareReqRow(
-            iconBg = linkBrush,
-            icon = {
-                Icon(Icons.Outlined.Link, null, tint = Color.White, modifier = Modifier.size(22.dp))
-            },
-            title = stringResource(R.string.jar_share_link_title),
-            value = linkValue
-        )
-        Spacer(modifier = Modifier.height(18.dp))
-        ShareReqRow(
-            iconBg = Brush.linearGradient(listOf(Color(0xFF34C759), Color(0xFF28A745))),
-            icon = {
-                Icon(Icons.Outlined.CreditCard, null, tint = Color.White, modifier = Modifier.size(22.dp))
-            },
-            title = stringResource(R.string.jar_share_card_title),
-            value = cardValue
-        )
-        Spacer(modifier = Modifier.height(18.dp))
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(ShareInnerButtonBg)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { }
-                )
-                .padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center
+                .padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 16.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Text(
+                text = stringResource(R.string.jar_share_req_section),
+                color = SharePrimaryText,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            ShareReqRow(
+                icon = {
+                    JarAssetIcon(
+                        assetPath = JarLinkPurpleAsset,
+                        modifier = Modifier.fillMaxSize(),
+                        fallback = { Icon(Icons.Outlined.Link, null, tint = Color.White, modifier = Modifier.size(22.dp)) }
+                    )
+                },
+                title = stringResource(R.string.jar_share_link_title),
+                value = linkValue,
+                onClick = { copyValue(linkValue, "Посилання скопійовано") }
+            )
+            Spacer(modifier = Modifier.height(22.dp))
+            ShareReqRow(
+                icon = {
+                    JarAssetIcon(
+                        assetPath = JarCardNumberAsset,
+                        modifier = Modifier.fillMaxSize(),
+                        fallback = { Icon(Icons.Outlined.CreditCard, null, tint = Color.White, modifier = Modifier.size(22.dp)) }
+                    )
+                },
+                title = stringResource(R.string.jar_share_card_title),
+                value = cardValue,
+                onClick = { copyValue(cardValue, "Номер картки скопійовано") }
+            )
+            Spacer(modifier = Modifier.height(22.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(ShareInnerButtonBg)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { }
+                    )
+                    .padding(vertical = 13.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Share,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ShareNegateIcon()
+                    Text(
+                        text = stringResource(R.string.jar_share_button),
+                        color = ShareButtonText,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = copiedMessage != null,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .background(ShareCopiedToastBg),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    text = stringResource(R.string.jar_share_button),
+                    text = copiedMessage.orEmpty(),
                     color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontSize = 12.sp,
+                    lineHeight = 14.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -1176,45 +1401,92 @@ private fun ShareRequisitesCard(
 
 @Composable
 private fun ShareReqRow(
-    iconBg: Brush,
     icon: @Composable () -> Unit,
     title: String,
-    value: String
+    value: String,
+    onClick: () -> Unit
 ) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        verticalAlignment = Alignment.Top
+    ) {
         Box(
             modifier = Modifier
                 .size(44.dp)
-                .clip(CircleShape)
-                .background(iconBg),
+                .clip(CircleShape),
             contentAlignment = Alignment.Center
         ) {
             icon()
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = Color.White,
+                color = SharePrimaryText,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Normal
+                lineHeight = 19.sp,
+                fontWeight = FontWeight.Medium
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(
-                    imageVector = Icons.Outlined.ContentCopy,
-                    contentDescription = stringResource(R.string.jar_share_copy_cd),
-                    tint = ShareMuted,
-                    modifier = Modifier.size(16.dp)
-                )
+                ShareCopyIcon()
                 Text(
                     text = value,
-                    color = ShareMuted,
-                    fontSize = 13.sp,
-                    lineHeight = 16.sp
+                    color = ShareValueText,
+                    fontSize = 14.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Normal
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ShareNegateIcon(modifier: Modifier = Modifier) {
+    val bitmap = rememberFirstJarAssetBitmap(listOf(JarShareNegateAsset))
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            contentDescription = null,
+            modifier = modifier.size(18.dp),
+            contentScale = ContentScale.Fit,
+            colorFilter = ColorFilter.tint(Color(0xFFE1E1E1))
+        )
+    } else {
+        Icon(
+            imageVector = Icons.Outlined.Share,
+            contentDescription = null,
+            tint = Color(0xFFE1E1E1),
+            modifier = modifier.size(18.dp)
+        )
+    }
+}
+
+@Composable
+private fun ShareCopyIcon(modifier: Modifier = Modifier) {
+    val bitmap = rememberFirstJarAssetBitmap(listOf(JarCopyAsset))
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap,
+            contentDescription = stringResource(R.string.jar_share_copy_cd),
+            modifier = modifier.size(12.dp),
+            contentScale = ContentScale.Fit
+        )
+    } else {
+        Icon(
+            imageVector = Icons.Outlined.ContentCopy,
+            contentDescription = stringResource(R.string.jar_share_copy_cd),
+            tint = ShareMuted,
+            modifier = modifier.size(12.dp)
+        )
     }
 }
 
@@ -1236,22 +1508,27 @@ private fun ShareDocRow(modifier: Modifier = Modifier) {
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFB8A3E0)),
+                .clip(CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Outlined.Description,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(26.dp)
+            JarAssetIcon(
+                assetPath = JarReqAsset,
+                modifier = Modifier.fillMaxSize(),
+                fallback = {
+                    Icon(
+                        imageVector = Icons.Outlined.Description,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
             )
         }
         Spacer(modifier = Modifier.width(14.dp))
         Text(
             text = stringResource(R.string.jar_share_doc_row),
-            color = Color.White,
-            fontSize = 16.sp,
+            color = Color(0xFFBEBEBD),
+            fontSize = 17.sp,
             fontWeight = FontWeight.SemiBold
         )
     }

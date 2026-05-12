@@ -1,5 +1,7 @@
 package com.konvert.app.ui.home
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.FastForward
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.South
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -37,30 +40,58 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.konvert.app.R
+import com.konvert.app.admin.JarTopUpTransactionAdminConfig
+import com.konvert.app.admin.LocalAppAdmin
 
 /** Дані для екрана деталей однієї транзакції (відкривається зі списку). */
 internal data class JarTxnDetailPayload(
-    @StringRes val fromRes: Int,
-    @StringRes val badgeRes: Int,
-    @StringRes val dateTimeRes: Int,
-    @StringRes val amountRes: Int,
-    @StringRes val balanceRes: Int
+    val fromLabel: String,
+    val badge: String,
+    val dateTime: String,
+    val amount: String,
+    val balance: String
 )
 
 private val JarTxnScreenBg = Color(0xFF121212)
 private val JarTxnDateMuted = Color(0xFF8E8E93)
 private val JarTxnAmountGreen = Color(0xFF4CD964)
 private val JarTxnBadgeBg = Color.Black
+private const val JarTxnOperationsLogosPath = "operations_logos"
+private const val JarTxnOneTimeAsset = "$JarTxnOperationsLogosPath/transfer_purple.png"
+private const val JarTxnRoundBalanceAsset = "$JarTxnOperationsLogosPath/split.png"
+private const val JarTxnRoundExpenseAsset = "$JarTxnOperationsLogosPath/repeat.png"
+private const val JarTxnCatAsset = "$JarTxnOperationsLogosPath/cat_icon.png"
+private const val JarTxnLinkCircleAsset = "$JarTxnOperationsLogosPath/Link.png"
+private const val JarTxnCatTransferAsset = "$JarTxnOperationsLogosPath/cat_transfer.png"
+
+@Composable
+private fun rememberJarTxnAssetBitmap(assetPath: String?): ImageBitmap? {
+    val context = LocalContext.current
+    return remember(assetPath) {
+        assetPath?.let { path ->
+            runCatching {
+                context.assets.open(path).use { input ->
+                    BitmapFactory.decodeStream(input)?.asImageBitmap()
+                }
+            }.getOrNull()
+        }
+    }
+}
 
 private sealed class JarStubTxnItem {
     data class DateHeader(@StringRes val textRes: Int) : JarStubTxnItem()
+    data class DateHeaderText(val text: String) : JarStubTxnItem()
     data class Line(
         val fromWhiteCard: Boolean,
         @StringRes val amountRes: Int,
@@ -68,6 +99,7 @@ private sealed class JarStubTxnItem {
         @StringRes val balanceRes: Int,
         @StringRes val badgeRes: Int
     ) : JarStubTxnItem()
+    data class AdminLine(val transaction: JarTopUpTransactionAdminConfig) : JarStubTxnItem()
 }
 
 @Composable
@@ -78,10 +110,23 @@ internal fun JarTopUpTransactionsScreen(
     onOpenTransaction: (JarTxnDetailPayload) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val items = remember(category) { stubItemsForCategory(category) }
+    val admin = LocalAppAdmin.current
+    val jar = admin?.state?.jarOrDefault(jarIndex)
+    val items = remember(category, jar?.linkTransactions, jar?.cardNumberTransactions) {
+        when (category) {
+            JarTopUpCategory.Link ->
+                adminItemsForCategory(normalizedLinkTransactions(jar?.linkTransactions.orEmpty()), stubLinkTransactions())
+            JarTopUpCategory.CardNumber ->
+                adminItemsForCategory(jar?.cardNumberTransactions.orEmpty(), stubCardNumberTransactions())
+            else -> stubItemsForCategory(category)
+        }
+    }
     val (circleColor, rowIcon) = categoryVisual(category)
+    val rowIconAsset = categoryAssetPath(category)
+    val catTransferAsset = if (category == JarTopUpCategory.Link) JarTxnCatTransferAsset else null
     val subtitleRes = categorySubtitleRes(category)
-    val showHeaderDivider = category == JarTopUpCategory.OneTime
+    val showHeaderDivider = category == JarTopUpCategory.OneTime || category == JarTopUpCategory.Link
+    val fromLabel = stringResource(R.string.jar_detail_from_sender)
 
     Column(
         modifier = modifier
@@ -104,9 +149,12 @@ internal fun JarTopUpTransactionsScreen(
         Text(
             text = stringResource(categoryTitleRes(category)),
             color = Color.White,
-            fontSize = 21.sp,
+            fontSize = if (category == JarTopUpCategory.Link) 24.sp else 21.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+            modifier = Modifier.padding(
+                horizontal = 20.dp,
+                vertical = if (category == JarTopUpCategory.Link) 18.dp else 4.dp
+            )
         )
         if (showHeaderDivider) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -125,40 +173,96 @@ internal fun JarTopUpTransactionsScreen(
                 key = { index, item ->
                     when (item) {
                         is JarStubTxnItem.DateHeader -> "d_${item.textRes}_$index"
+                        is JarStubTxnItem.DateHeaderText -> "dt_${item.text}_$index"
                         is JarStubTxnItem.Line ->
                             "l_${item.amountRes}_${item.dateTimeRes}_${item.balanceRes}_$index"
+                        is JarStubTxnItem.AdminLine ->
+                            "a_${item.transaction.dateLabel}_${item.transaction.amount}_$index"
                     }
                 }
             ) { _, item ->
                 when (item) {
                     is JarStubTxnItem.DateHeader -> {
-                        JarTxnDateHeader(text = stringResource(item.textRes))
+                        JarTxnDateHeader(text = stringResource(item.textRes), large = category == JarTopUpCategory.Link)
+                    }
+                    is JarStubTxnItem.DateHeaderText -> {
+                        JarTxnDateHeader(text = item.text, large = category == JarTopUpCategory.Link)
                     }
                     is JarStubTxnItem.Line -> {
+                        val primaryLabel = stringResource(
+                            if (item.fromWhiteCard) {
+                                R.string.jar_txn_from_white_card
+                            } else {
+                                R.string.jar_txn_from_black_card
+                            }
+                        )
+                        val subtitle = stringResource(subtitleRes)
+                        val amount = stringResource(item.amountRes)
+                        val badge = stringResource(item.badgeRes)
+                        val dateTime = stringResource(item.dateTimeRes)
+                        val balance = stringResource(item.balanceRes)
                         JarTxnRow(
-                            primaryLabel = stringResource(
-                                if (item.fromWhiteCard) {
-                                    R.string.jar_txn_from_white_card
-                                } else {
-                                    R.string.jar_txn_from_black_card
-                                }
-                            ),
-                            subtitle = stringResource(subtitleRes),
-                            amount = stringResource(item.amountRes),
+                            primaryLabel = primaryLabel,
+                            subtitle = subtitle,
+                            amount = amount,
                             circleColor = circleColor,
                             icon = rowIcon,
+                            iconAssetPath = rowIconAsset,
                             onClick = {
                                 onOpenTransaction(
                                     JarTxnDetailPayload(
-                                        fromRes = R.string.jar_detail_from_sender,
-                                        badgeRes = item.badgeRes,
-                                        dateTimeRes = item.dateTimeRes,
-                                        amountRes = item.amountRes,
-                                        balanceRes = item.balanceRes
+                                        fromLabel = fromLabel,
+                                        badge = badge,
+                                        dateTime = dateTime,
+                                        amount = amount,
+                                        balance = balance
                                     )
                                 )
                             }
                         )
+                    }
+                    is JarStubTxnItem.AdminLine -> {
+                        val txn = item.transaction
+                        val badge = stringResource(categoryTitleRes(category))
+                        if (category == JarTopUpCategory.Link) {
+                            JarTxnLinkRow(
+                                signature = txn.signature,
+                                amount = txn.amount,
+                                iconAssetPath = rowIconAsset,
+                                catAssetPath = catTransferAsset,
+                                onClick = {
+                                    onOpenTransaction(
+                                        JarTxnDetailPayload(
+                                            fromLabel = fromLabel,
+                                            badge = badge,
+                                            dateTime = txn.dateTimeDisplay,
+                                            amount = txn.amount,
+                                            balance = txn.balanceAfter
+                                        )
+                                    )
+                                }
+                            )
+                        } else {
+                            JarTxnRow(
+                                primaryLabel = txn.senderTitle,
+                                subtitle = txn.signature,
+                                amount = txn.amount,
+                                circleColor = circleColor,
+                                icon = rowIcon,
+                                iconAssetPath = rowIconAsset,
+                                onClick = {
+                                    onOpenTransaction(
+                                        JarTxnDetailPayload(
+                                            fromLabel = fromLabel,
+                                            badge = badge,
+                                            dateTime = txn.dateTimeDisplay,
+                                            amount = txn.amount,
+                                            balance = txn.balanceAfter
+                                        )
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -167,16 +271,103 @@ internal fun JarTopUpTransactionsScreen(
 }
 
 @Composable
-private fun JarTxnDateHeader(text: String) {
+private fun JarTxnDateHeader(text: String, large: Boolean = false) {
     Text(
         text = text,
         color = JarTxnDateMuted,
-        fontSize = 14.sp,
+        fontSize = if (large) 18.sp else 14.sp,
         textAlign = TextAlign.Center,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 18.dp)
+            .padding(
+                top = if (large) 28.dp else 18.dp,
+                bottom = if (large) 22.dp else 18.dp
+            )
     )
+}
+
+@Composable
+private fun JarTxnLinkRow(
+    signature: String,
+    amount: String,
+    iconAssetPath: String?,
+    catAssetPath: String?,
+    onClick: () -> Unit
+) {
+    val iconBitmap = rememberJarTxnAssetBitmap(iconAssetPath)
+    val catBitmap = rememberJarTxnAssetBitmap(catAssetPath)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            if (iconBitmap != null) {
+                Image(
+                    bitmap = iconBitmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.Link,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 28.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Від:",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Normal
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            if (catBitmap != null) {
+                Image(
+                    bitmap = catBitmap,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+            if (signature.isNotBlank() && signature != "cat_transfer.png") {
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = signature,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Normal
+                )
+            }
+        }
+        Text(
+            text = amount,
+            color = JarTxnAmountGreen,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Normal
+        )
+    }
 }
 
 @Composable
@@ -186,8 +377,12 @@ private fun JarTxnRow(
     amount: String,
     circleColor: Color,
     icon: ImageVector,
+    iconAssetPath: String? = null,
+    badgeAssetPath: String? = null,
     onClick: () -> Unit
 ) {
+    val iconBitmap = rememberJarTxnAssetBitmap(iconAssetPath)
+    val badgeBitmap = rememberJarTxnAssetBitmap(badgeAssetPath)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -211,12 +406,21 @@ private fun JarTxnRow(
                     .background(circleColor),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
+                if (iconBitmap != null) {
+                    Image(
+                        bitmap = iconBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
             Box(
                 modifier = Modifier
@@ -227,13 +431,22 @@ private fun JarTxnRow(
                     .background(JarTxnBadgeBg),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
+                if (badgeBitmap != null) {
+                    Image(
+                        bitmap = badgeBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
                     text = "₴",
                     color = Color.White,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.offset(y = (-0.5).dp)
-                )
+                    )
+                }
             }
         }
         Column(
@@ -268,6 +481,8 @@ private fun categoryTitleRes(c: JarTopUpCategory): Int = when (c) {
     JarTopUpCategory.OneTime -> R.string.jar_topup_onetime_title
     JarTopUpCategory.RoundBalance -> R.string.jar_topup_round_balance_title
     JarTopUpCategory.RoundExpense -> R.string.jar_topup_round_expense_title
+    JarTopUpCategory.Link -> R.string.jar_stats_card_link
+    JarTopUpCategory.CardNumber -> R.string.jar_stats_card_direct
 }
 
 @StringRes
@@ -275,13 +490,116 @@ private fun categorySubtitleRes(c: JarTopUpCategory): Int = when (c) {
     JarTopUpCategory.OneTime -> R.string.jar_topup_onetime_title
     JarTopUpCategory.RoundBalance -> R.string.jar_topup_round_balance_title
     JarTopUpCategory.RoundExpense -> R.string.jar_topup_round_expense_title
+    JarTopUpCategory.Link -> R.string.jar_stats_card_link
+    JarTopUpCategory.CardNumber -> R.string.jar_share_card_title
 }
 
 private fun categoryVisual(c: JarTopUpCategory): Pair<Color, ImageVector> = when (c) {
     JarTopUpCategory.OneTime -> Color(0xFF0A84FF) to Icons.Outlined.South
     JarTopUpCategory.RoundBalance -> Color(0xFFD97B67) to Icons.Outlined.CreditCard
     JarTopUpCategory.RoundExpense -> Color(0xFFAF52DE) to Icons.Outlined.FastForward
+    JarTopUpCategory.Link -> Color.Transparent to Icons.Outlined.Link
+    JarTopUpCategory.CardNumber -> Color.Transparent to Icons.Outlined.CreditCard
 }
+
+private fun categoryAssetPath(c: JarTopUpCategory): String = when (c) {
+    JarTopUpCategory.OneTime -> JarTxnOneTimeAsset
+    JarTopUpCategory.RoundBalance -> JarTxnRoundBalanceAsset
+    JarTopUpCategory.RoundExpense -> JarTxnRoundExpenseAsset
+    JarTopUpCategory.Link -> JarTxnLinkCircleAsset
+    JarTopUpCategory.CardNumber -> JarTxnCatAsset
+}
+
+private fun adminItemsForCategory(
+    transactions: List<JarTopUpTransactionAdminConfig>,
+    fallback: List<JarTopUpTransactionAdminConfig>
+): List<JarStubTxnItem> {
+    val source = transactions.ifEmpty { fallback }
+    return source
+        .groupBy { it.dateLabel.ifBlank { "Сьогодні" } }
+        .flatMap { (date, rows) ->
+            listOf(JarStubTxnItem.DateHeaderText(date)) + rows.map { JarStubTxnItem.AdminLine(it) }
+        }
+}
+
+private fun normalizedLinkTransactions(
+    transactions: List<JarTopUpTransactionAdminConfig>
+): List<JarTopUpTransactionAdminConfig> {
+    val only = transactions.singleOrNull() ?: return transactions
+    val legacyDefault = only.amount.filter(Char::isDigit).startsWith("46501") &&
+        only.signature != "cat_transfer.png"
+    return if (legacyDefault) emptyList() else transactions
+}
+
+private fun stubLinkTransactions(): List<JarTopUpTransactionAdminConfig> = listOf(
+    JarTopUpTransactionAdminConfig(
+        senderTitle = "Від:",
+        signature = "cat_transfer.png",
+        amount = "15.00",
+        dateLabel = "7 травня",
+        dateTimeDisplay = "7 травня 2026, 13:13",
+        balanceAfter = "46 501 ₴"
+    ),
+    JarTopUpTransactionAdminConfig(
+        senderTitle = "Від:",
+        signature = "cat_transfer.png",
+        amount = "100.00",
+        dateLabel = "7 травня",
+        dateTimeDisplay = "7 травня 2026, 13:13",
+        balanceAfter = "46 486 ₴"
+    ),
+    JarTopUpTransactionAdminConfig(
+        senderTitle = "Від:",
+        signature = "cat_transfer.png",
+        amount = "15.00",
+        dateLabel = "21 квітня",
+        dateTimeDisplay = "21 квітня 2026, 13:13",
+        balanceAfter = "46 386 ₴"
+    ),
+    JarTopUpTransactionAdminConfig(
+        senderTitle = "Від:",
+        signature = "cat_transfer.png",
+        amount = "12.00",
+        dateLabel = "9 квітня",
+        dateTimeDisplay = "9 квітня 2026, 13:13",
+        balanceAfter = "46 371 ₴"
+    ),
+    JarTopUpTransactionAdminConfig(
+        senderTitle = "Від:",
+        signature = "cat_transfer.png",
+        amount = "12.00",
+        dateLabel = "6 квітня",
+        dateTimeDisplay = "6 квітня 2026, 13:13",
+        balanceAfter = "46 359 ₴"
+    ),
+    JarTopUpTransactionAdminConfig(
+        senderTitle = "Від:",
+        signature = "cat_transfer.png",
+        amount = "15.00",
+        dateLabel = "6 квітня",
+        dateTimeDisplay = "6 квітня 2026, 13:13",
+        balanceAfter = "46 347 ₴"
+    ),
+    JarTopUpTransactionAdminConfig(
+        senderTitle = "Від:",
+        signature = "cat_transfer.png",
+        amount = "15.00",
+        dateLabel = "6 квітня",
+        dateTimeDisplay = "6 квітня 2026, 13:13",
+        balanceAfter = "46 332 ₴"
+    )
+)
+
+private fun stubCardNumberTransactions(): List<JarTopUpTransactionAdminConfig> = listOf(
+    JarTopUpTransactionAdminConfig(
+        senderTitle = "З Білої картки",
+        signature = "Номер картки банки",
+        amount = "10 370.00 ₴",
+        dateLabel = "Сьогодні",
+        dateTimeDisplay = "12 травня 2026, 13:13",
+        balanceAfter = "10 370.00 ₴"
+    )
+)
 
 private fun stubItemsForCategory(category: JarTopUpCategory): List<JarStubTxnItem> {
     val link = R.string.jar_detail_badge_link
@@ -326,5 +644,7 @@ private fun stubItemsForCategory(category: JarTopUpCategory): List<JarStubTxnIte
             JarStubTxnItem.DateHeader(R.string.jar_txn_date_apr8),
             JarStubTxnItem.Line(true, R.string.jar_txn_amt_058, R.string.jar_detail_dt_apr8_1200, R.string.jar_detail_balance_143, re)
         )
+        JarTopUpCategory.Link -> adminItemsForCategory(emptyList(), stubLinkTransactions())
+        JarTopUpCategory.CardNumber -> adminItemsForCategory(emptyList(), stubCardNumberTransactions())
     }
 }

@@ -3,7 +3,19 @@ package com.konvert.app.admin
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlinx.serialization.Serializable
 
+@Serializable
+data class JarTopUpTransactionAdminConfig(
+    val senderTitle: String = "Дмитро Полонський",
+    val signature: String = "На авто",
+    val amount: String = "150 ₴",
+    val dateLabel: String = "Сьогодні",
+    val dateTimeDisplay: String = "12 травня 2026, 13:13",
+    val balanceAfter: String = "46 501 ₴"
+)
+
+@Serializable
 data class JarAdminConfig(
     val name: String = "На авто",
     val balanceDisplay: String = "6.67 ₴",
@@ -15,14 +27,83 @@ data class JarAdminConfig(
     val statPersonalCard: String = "10",
     val statOtherUa: String = "4604.43",
     val statAbroad: String = "0",
-    val statByNumber: String = "4447.43",
-    val statByLink: String = "167",
+    val statByNumber: String = "15 000 ₴",
+    val statByLink: String = "46 501 ₴",
     /** Рядки статистики на екрані банки (mono / прапор / глобус). */
     val statMonoDisplay: String = "29 261.18",
     val statFlagDisplay: String = "21 488 ₴",
-    val statGlobeDisplay: String = "1 014 ₴"
+    val statGlobeDisplay: String = "1 014 ₴",
+    val cardNumberTransactions: List<JarTopUpTransactionAdminConfig> = listOf(
+        JarTopUpTransactionAdminConfig(
+            senderTitle = "З Білої картки",
+            signature = "Номер картки банки",
+            amount = "10 370.00 ₴",
+            dateLabel = "Сьогодні",
+            dateTimeDisplay = "12 травня 2026, 13:13",
+            balanceAfter = "10 370.00 ₴"
+        )
+    ),
+    val linkTransactions: List<JarTopUpTransactionAdminConfig> = listOf(
+        JarTopUpTransactionAdminConfig(
+            senderTitle = "Від:",
+            signature = "cat_transfer.png",
+            amount = "15.00",
+            dateLabel = "7 травня",
+            dateTimeDisplay = "7 травня 2026, 13:13",
+            balanceAfter = "46 501 ₴"
+        ),
+        JarTopUpTransactionAdminConfig(
+            senderTitle = "Від:",
+            signature = "cat_transfer.png",
+            amount = "100.00",
+            dateLabel = "7 травня",
+            dateTimeDisplay = "7 травня 2026, 13:13",
+            balanceAfter = "46 486 ₴"
+        ),
+        JarTopUpTransactionAdminConfig(
+            senderTitle = "Від:",
+            signature = "cat_transfer.png",
+            amount = "15.00",
+            dateLabel = "21 квітня",
+            dateTimeDisplay = "21 квітня 2026, 13:13",
+            balanceAfter = "46 386 ₴"
+        ),
+        JarTopUpTransactionAdminConfig(
+            senderTitle = "Від:",
+            signature = "cat_transfer.png",
+            amount = "12.00",
+            dateLabel = "9 квітня",
+            dateTimeDisplay = "9 квітня 2026, 13:13",
+            balanceAfter = "46 371 ₴"
+        ),
+        JarTopUpTransactionAdminConfig(
+            senderTitle = "Від:",
+            signature = "cat_transfer.png",
+            amount = "12.00",
+            dateLabel = "6 квітня",
+            dateTimeDisplay = "6 квітня 2026, 13:13",
+            balanceAfter = "46 359 ₴"
+        ),
+        JarTopUpTransactionAdminConfig(
+            senderTitle = "Від:",
+            signature = "cat_transfer.png",
+            amount = "15.00",
+            dateLabel = "6 квітня",
+            dateTimeDisplay = "6 квітня 2026, 13:13",
+            balanceAfter = "46 347 ₴"
+        ),
+        JarTopUpTransactionAdminConfig(
+            senderTitle = "Від:",
+            signature = "cat_transfer.png",
+            amount = "15.00",
+            dateLabel = "6 квітня",
+            dateTimeDisplay = "6 квітня 2026, 13:13",
+            balanceAfter = "46 332 ₴"
+        )
+    )
 )
 
+@Serializable
 data class CardOperationAdminConfig(
     val title: String = "Steam",
     val amount: String = "-100 ₴",
@@ -31,6 +112,7 @@ data class CardOperationAdminConfig(
     val commissionAmount: String = "0 ₴"
 )
 
+@Serializable
 data class CardAdminConfig(
     val name: String,
     val balanceDisplay: String,
@@ -38,6 +120,7 @@ data class CardAdminConfig(
     val operations: List<CardOperationAdminConfig>
 )
 
+@Serializable
 data class AppAdminState(
     val mainFirstName: String = "Андрій",
     val accountFullName: String = "Андрій Коваленко",
@@ -106,6 +189,10 @@ data class AppAdminState(
 
 class AppAdminController(initial: AppAdminState = AppAdminState()) {
     var state by mutableStateOf(initial)
+
+    fun replaceState(next: AppAdminState) {
+        state = next
+    }
 
     fun updateMain(
         mainFirstName: String,

@@ -23,10 +23,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 
 import androidx.compose.ui.Alignment
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 
 import androidx.compose.ui.graphics.Color
 
@@ -51,6 +53,7 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.konvert.app.R
 
 import com.konvert.app.admin.AppAdminController
+import com.konvert.app.admin.AppAdminStateStore
 
 import com.konvert.app.admin.LocalAppAdmin
 
@@ -58,13 +61,17 @@ import com.konvert.app.ui.admin.AdminMainPanel
 import com.konvert.app.ui.admin.CardAdminPanel
 import com.konvert.app.ui.admin.CardOperationsAdminPanel
 
+import com.konvert.app.ui.admin.JarAdminTransactionsKind
 import com.konvert.app.ui.admin.JarAdminPanel
+import com.konvert.app.ui.admin.JarTransactionsAdminPanel
 
 import com.konvert.app.ui.home.HomeScreen
 
 import com.konvert.app.ui.lock.PinLockScreen
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 
 
@@ -90,6 +97,7 @@ private sealed class AdminOverlayRoute {
     data class CardOperations(val index: Int) : AdminOverlayRoute()
 
     data class Jar(val index: Int) : AdminOverlayRoute()
+    data class JarTransactions(val index: Int, val kind: JarAdminTransactionsKind) : AdminOverlayRoute()
 
 }
 
@@ -109,9 +117,26 @@ fun BankingEntryHost() {
 
     var bankingSessionReady by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
+    val adminStateStore = remember(context) { AppAdminStateStore(context) }
     val adminController = remember { AppAdminController() }
+    var adminStateLoaded by remember { mutableStateOf(false) }
 
     var adminRoute by remember { mutableStateOf<AdminOverlayRoute>(AdminOverlayRoute.Hidden) }
+
+    LaunchedEffect(adminStateStore, adminController) {
+        adminController.replaceState(adminStateStore.load())
+        adminStateLoaded = true
+    }
+
+    LaunchedEffect(adminStateStore, adminController, adminStateLoaded) {
+        if (!adminStateLoaded) return@LaunchedEffect
+        snapshotFlow { adminController.state }
+            .distinctUntilChanged()
+            .collect { state ->
+                adminStateStore.save(state)
+            }
+    }
 
 
 
@@ -119,19 +144,27 @@ fun BankingEntryHost() {
 
         Box(modifier = Modifier.fillMaxSize()) {
 
-            if (!bankingSessionReady) {
+            if (!adminStateLoaded) {
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black)
+                )
+
+            } else if (!bankingSessionReady) {
 
                 PinLockScreen(onUnlocked = { unlocked = true })
 
             }
 
-            if (unlocked && !bankingSessionReady) {
+            if (adminStateLoaded && unlocked && !bankingSessionReady) {
 
                 BankingSessionLoaderOverlay(onPrepared = { bankingSessionReady = true })
 
             }
 
-            if (bankingSessionReady) {
+            if (adminStateLoaded && bankingSessionReady) {
 
                 HomeScreen(onOpenAdmin = { adminRoute = AdminOverlayRoute.Main })
 
@@ -139,13 +172,14 @@ fun BankingEntryHost() {
 
 
 
-            if (bankingSessionReady && adminRoute !is AdminOverlayRoute.Hidden) {
+            if (adminStateLoaded && bankingSessionReady && adminRoute !is AdminOverlayRoute.Hidden) {
 
                 BackHandler {
 
                     adminRoute = when (val route = adminRoute) {
 
                         is AdminOverlayRoute.Jar -> AdminOverlayRoute.Main
+                        is AdminOverlayRoute.JarTransactions -> AdminOverlayRoute.Jar(route.index)
                         is AdminOverlayRoute.Card -> AdminOverlayRoute.Main
                         is AdminOverlayRoute.CardOperations -> AdminOverlayRoute.Card(route.index)
 
@@ -204,6 +238,23 @@ fun BankingEntryHost() {
                         jarIndex = route.index,
 
                         onBack = { adminRoute = AdminOverlayRoute.Main },
+                        onOpenTransactionsSettings = { index, kind ->
+                            adminRoute = AdminOverlayRoute.JarTransactions(index, kind)
+                        },
+
+                        modifier = Modifier.fillMaxSize()
+
+                    )
+
+                    is AdminOverlayRoute.JarTransactions -> JarTransactionsAdminPanel(
+
+                        controller = adminController,
+
+                        jarIndex = route.index,
+
+                        kind = route.kind,
+
+                        onBack = { adminRoute = AdminOverlayRoute.Jar(route.index) },
 
                         modifier = Modifier.fillMaxSize()
 

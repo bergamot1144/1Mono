@@ -1,5 +1,6 @@
 package com.konvert.app.ui.home
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Typeface
 import kotlin.math.abs
@@ -202,6 +203,7 @@ private val BottomBarNavLabelLetterSpacing = (-0.1).sp
 private val BottomBarNavLabelFontFamily = FontFamily(
     Font(R.font.roboto_bold, FontWeight.Normal, FontStyle.Normal)
 )
+private val HomeBottomBarShadeHeight = 210.dp
 
 /**
  * Вертикальні відступи [HomeBottomBar] навколо пігулки (див. [HomeBottomBar] `padding(vertical = 8.dp)`).
@@ -322,6 +324,10 @@ private val HomeQuickActionIconSize = 22.dp
 private const val HomeTopAssetIconScaleY = 1.12f
 private const val HomeTopProfileMessageScale = 1.22f
 private const val HomeTopStatsScale = 1.36f
+private val HomeBalanceWalletIconSize = 22.dp
+private val HomeBalanceCreditIconSize = 22.dp
+private val HomeOperationsTitleFontSize = 20.sp
+private val HomeOperationRowFontSize = 18.sp
 
 /** Колір великого балансу [R.string.home_balance_main] — кешбек у топ-барі та сусідні іконки. */
 private val HomeBalanceMainAmountColor = Color(0xFFFFFFFF)
@@ -354,9 +360,9 @@ private const val HomeProfilePersonalDataAsset = "$OperationsLogosPath/personal_
 private const val HomeProfileSettingsAsset = "$OperationsLogosPath/settings.png"
 private const val HomeProfileFopAsset = "$OperationsLogosPath/fop.png"
 /** Іконка чипа кредитного ліміту біля [R.string.home_balance_credit]. */
-private const val CardAddDebitNegateAsset = "$OperationsLogosPath/add_debit_card_negate.png"
+private const val CardCreditSumAsset = "$OperationsLogosPath/credit_sum.png"
 /** Іконка чипа «Усі картки» під каруселлю. */
-private const val HomeAllCardsChipIconAsset = "$OperationsLogosPath/card_negate.png"
+private const val HomeAllCardsChipAsset = "$OperationsLogosPath/all_cards.png"
 
 private const val HomeStatsAsset = "$OperationsLogosPath/stats.png"
 private const val HomeGraphNegateAsset = "graph_negate.png"
@@ -384,6 +390,40 @@ private fun rememberAssetImageBitmap(assetPath: String): ImageBitmap? {
             }
         }.getOrNull()
     }
+}
+
+@Composable
+private fun rememberCroppedAssetImageBitmap(assetPath: String): ImageBitmap? {
+    val context = LocalContext.current
+    return remember(assetPath) {
+        if (assetPath.isBlank()) null
+        else runCatching {
+            context.assets.open(assetPath).use { input ->
+                BitmapFactory.decodeStream(input)
+                    ?.cropVisibleAlpha()
+                    ?.asImageBitmap()
+            }
+        }.getOrNull()
+    }
+}
+
+private fun android.graphics.Bitmap.cropVisibleAlpha(): android.graphics.Bitmap {
+    var minX = width
+    var minY = height
+    var maxX = -1
+    var maxY = -1
+    for (y in 0 until height) {
+        for (x in 0 until width) {
+            if (getPixel(x, y).ushr(24) > 8) {
+                if (x < minX) minX = x
+                if (y < minY) minY = y
+                if (x > maxX) maxX = x
+                if (y > maxY) maxY = y
+            }
+        }
+    }
+    if (maxX < minX || maxY < minY) return this
+    return Bitmap.createBitmap(this, minX, minY, maxX - minX + 1, maxY - minY + 1)
 }
 
 @Composable
@@ -707,6 +747,11 @@ fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
         val hideBottomBar =
             selectedBottomTab == HomeBottomNavTab.Savings && savingsJarFlow !is SavingsJarFlow.None
         if (!hideBottomBar) {
+            HomeBottomBarShade(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            )
             HomeBottomBar(
                 selectedTab = selectedBottomTab,
                 onTabSelected = { selectedBottomTab = it },
@@ -739,6 +784,9 @@ fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
                     jarIndex = f.jarIndex,
                     onBack = { savingsJarFlow = SavingsJarFlow.None },
                     onShareJar = { savingsJarFlow = SavingsJarFlow.Share(f.jarIndex) },
+                    onOpenStatsCategory = { cat ->
+                        savingsJarFlow = SavingsJarFlow.TopUpTransactions(f.jarIndex, cat)
+                    },
                     onOpenTopUpCategory = { cat ->
                         savingsJarFlow = SavingsJarFlow.TopUpTransactions(f.jarIndex, cat)
                     },
@@ -1712,7 +1760,7 @@ private fun HomeBalanceBlock(kind: HomeCarouselCardKind) {
     val showSecondaryBalances = kind == HomeCarouselCardKind.Black
     val secondaryBalancesReservedHeight = 46.dp
     val walletChipIcon = rememberAssetImageBitmap(CardWalletNegateAsset)
-    val creditChipIcon = rememberAssetImageBitmap(CardAddDebitNegateAsset)
+    val creditChipIcon = rememberCroppedAssetImageBitmap(CardCreditSumAsset)
     val density = LocalDensity.current.density
     val balanceLift = (-HomeBalanceVerticalLiftPx / density).dp
     Column(
@@ -1747,7 +1795,7 @@ private fun HomeBalanceBlock(kind: HomeCarouselCardKind) {
                             Image(
                                 bitmap = walletChipIcon,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier.size(HomeBalanceWalletIconSize),
                                 contentScale = ContentScale.Fit,
                                 colorFilter = ColorFilter.tint(HomeBalanceBarTint)
                             )
@@ -1756,7 +1804,7 @@ private fun HomeBalanceBlock(kind: HomeCarouselCardKind) {
                                 imageVector = Icons.Outlined.AccountBalanceWallet,
                                 contentDescription = null,
                                 tint = HomeBalanceBarTint,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(HomeBalanceWalletIconSize)
                             )
                         }
                     },
@@ -1768,7 +1816,7 @@ private fun HomeBalanceBlock(kind: HomeCarouselCardKind) {
                             Image(
                                 bitmap = creditChipIcon,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier.size(HomeBalanceCreditIconSize),
                                 contentScale = ContentScale.Fit,
                                 colorFilter = ColorFilter.tint(HomeBalanceBarTint)
                             )
@@ -2031,45 +2079,28 @@ internal fun HomeCardDetailScreen(onClose: () -> Unit) {
 
 @Composable
 private fun HomeAllCardsChip(modifier: Modifier = Modifier) {
-    val allCardsIcon = rememberAssetImageBitmap(HomeAllCardsChipIconAsset)
+    val allCardsChip = rememberAssetImageBitmap(HomeAllCardsChipAsset)
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
-        Row(
+        Box(
             modifier = Modifier
-                .clip(ChipShape)
-                .background(KeypadButton.copy(alpha = 0.24f))
+                .size(width = 86.dp, height = 20.5.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
-                ) { }
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) { },
+            contentAlignment = Alignment.Center
         ) {
-            if (allCardsIcon != null) {
+            if (allCardsChip != null) {
                 Image(
-                    bitmap = allCardsIcon,
-                    contentDescription = null,
-                    modifier = Modifier.size(12.dp),
-                    contentScale = ContentScale.Fit,
-                    colorFilter = ColorFilter.tint(PinPromptText)
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Filled.CreditCard,
-                    contentDescription = null,
-                    tint = PinPromptText,
-                    modifier = Modifier.size(12.dp)
+                    bitmap = allCardsChip,
+                    contentDescription = stringResource(R.string.home_all_cards),
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
                 )
             }
-            Text(
-                text = stringResource(R.string.home_all_cards),
-                color = TextPrimary,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold
-            )
         }
     }
 }
@@ -2205,7 +2236,7 @@ private fun HomeOperationsCard(
                 amount = op.amount.ifBlank { stringResource(R.string.admin_card_operation_default_amount) },
                 dateLabel = op.dateLabel.ifBlank { "Без дати" },
                 commissionAmount = op.commissionAmount.takeIf { op.hasCommission && it.isNotBlank() },
-                logoAssetName = null,
+                logoAssetName = operationLogoAssetForTitle(op.title),
                 fallbackIcon = Icons.Filled.CreditCard
             )
         }
@@ -2234,7 +2265,7 @@ private fun HomeOperationsCard(
                 Text(
                     text = stringResource(R.string.home_operations_title),
                     color = TextPrimary,
-                    fontSize = 18.sp,
+                    fontSize = HomeOperationsTitleFontSize,
                     fontWeight = FontWeight.SemiBold
                 )
                 Box(
@@ -2288,6 +2319,13 @@ private fun HomeOperationsCard(
             operation = operation,
             onDismiss = { selectedOperation = null }
         )
+    }
+}
+
+private fun operationLogoAssetForTitle(title: String): String? {
+    return when {
+        title.contains("Apple", ignoreCase = true) -> "Apple.png"
+        else -> null
     }
 }
 
@@ -2388,7 +2426,8 @@ private fun OperationRow(
             Text(
                 text = title,
                 color = TextPrimary,
-                fontSize = 16.sp,
+                fontSize = HomeOperationRowFontSize,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -2396,8 +2435,8 @@ private fun OperationRow(
         Text(
             text = amount,
             color = TextPrimary,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold
+            fontSize = HomeOperationRowFontSize,
+            fontWeight = FontWeight.Bold
         )
     }
 }
@@ -2830,6 +2869,25 @@ private fun UsefulTile(
             )
         }
     }
+}
+
+@Composable
+private fun HomeBottomBarShade(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .height(HomeBottomBarShadeHeight)
+            .background(
+                Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0f to Color.Transparent,
+                        0.48f to Color.Transparent,
+                        0.68f to Color.Black.copy(alpha = 0.08f),
+                        0.86f to Color.Black.copy(alpha = 0.26f),
+                        1f to Color.Black.copy(alpha = 0.50f)
+                    )
+                )
+            )
+    )
 }
 
 @Composable
