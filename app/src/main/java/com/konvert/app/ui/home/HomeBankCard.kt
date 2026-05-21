@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -45,13 +46,42 @@ import androidx.compose.ui.unit.dp
 /** Ширина й висота пластини в слоті каруселі (ширше — сильніший ефект «трапеції» при наклоні). */
 private object HomeBankCardFrame {
     /** Базова ширина; у [HomeMonoTiltedCard] віднімається [HomeBankCardWidthNarrowPxTotal] px. */
-    val width: Dp = 308.dp
+    val width: Dp = 322.dp
     /** Висота пластини в [HomeMonoTiltedCard] (нижче — компактніший слот каруселі). */
     val height: Dp = 270.dp
 }
 
 /** Сума віднімання від базової ширини в px (перерахунок у dp у [HomeMonoTiltedCard]). */
-private const val HomeBankCardWidthNarrowPxTotal: Float = 12f
+private const val HomeBankCardWidthNarrowPxTotal: Float = 11f
+private const val HomeBankCardNumberStrokeWidthPx: Float = 2f
+
+@Composable
+private fun HomeCardNumberText(
+    text: String,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+    textAlign: TextAlign? = null
+) {
+    val textModifier = if (textAlign != null) Modifier.fillMaxWidth() else Modifier
+    Box(modifier = modifier) {
+        Text(
+            text = text,
+            style = style.copy(drawStyle = Stroke(width = HomeBankCardNumberStrokeWidthPx)),
+            modifier = textModifier,
+            textAlign = textAlign,
+            maxLines = 1,
+            overflow = TextOverflow.Clip
+        )
+        Text(
+            text = text,
+            style = style,
+            modifier = textModifier,
+            textAlign = textAlign,
+            maxLines = 1,
+            overflow = TextOverflow.Clip
+        )
+    }
+}
 
 /** Відступи контенту (логотип, номер, Visa) поверх Canvas. */
 private object HomeBankCardContentPadding {
@@ -61,12 +91,12 @@ private object HomeBankCardContentPadding {
 
 /** Розміри логотипів (assets). */
 private object HomeBankCardLogos {
-    val monobankWidth: Dp = 150.dp
-    val monobankHeight: Dp = 35.dp
-    val visaWidth: Dp = 60.dp
-    val visaHeight: Dp = 25.dp
+    val monobankWidth: Dp = 140.dp
+    val monobankHeight: Dp = 38.dp
+    val visaWidth: Dp = 50.dp
+    val visaHeight: Dp = 32.dp
     /** Відступ логотипу Visa вгору від нижнього краю лиця картки. */
-    val visaBottomLift: Dp = 15.dp
+    val visaBottomLift: Dp = 5.dp
     /** Зсув Visa вліво від `BottomEnd` (px → dp у [HomeMonoCardFaceLayers]). */
     const val visaOffsetLeftPx: Float = 10f
 }
@@ -81,22 +111,32 @@ private object HomeBankCardLogos {
  */
 private object HomeBankCardPlastic {
     val cornerRadius: Dp = 20.dp
-    val frontThickness: Dp = 8.dp
+    val frontThickness: Dp = 5.dp
 
     // --- Об'єм за лицем (видима смуга товщини / ребро при rotationX): #0d0d0d ---
     val volumeBackTop: Color = Color(0xFF0D0D0D)
     val volumeBackBottom: Color = Color(0xFF0D0D0D)
 
     // --- Основне лице: верх і низ як раніше; по середині висоти — плавно світліше (один стоп, без смуги) ---
-    val faceColorStart: Color = Color(0xFF0B101A)
+    val faceColorStart: Color = Color(0xFF050A0C)
     /** Світліший за колишній #171D2D — лише точка 0.5 на вертикальному градієнті. */
-    val faceColorCenter: Color = Color(0xFF202020)
+    val faceColorCenter: Color = Color(0xFF1A1A1A)
     /** Низ лиця біля ребра картки. */
     val faceColorEnd: Color = Color(0xFF292929)
 
     // --- Тонка смужка під лицем (відбиття фону) ---
     val stripWhite: Color = Color.White.copy(alpha = 0.035f)
     val stripBlue: Color = Color(0xFF8FB2FF).copy(alpha = 0.08f)
+    val lowerEdgeGlint: Color = Color(0xFFC3CDDC).copy(alpha = 0.76f)
+    val lowerEdgeGlintSoft: Color = Color(0xFFC3CDDC).copy(alpha = 0.1f)
+    const val lowerEdgeGlintStartFraction: Float = 0.12f
+    const val lowerEdgeGlintEndFraction: Float = 0.56f
+    const val lowerEdgeGlintLiftDp: Float = 0.15f
+    const val lowerEdgeGlintStrokeDp: Float = 0.48f
+    val lowerEdgeVolumeGlint: Color = Color(0xFF828B9B).copy(alpha = 0.20f)
+    val lowerEdgeVolumeGlintSoft: Color = Color(0xFF586574).copy(alpha = 0.075f)
+    const val lowerEdgeVolumeGlintStartFraction: Float = 0.16f
+    const val lowerEdgeVolumeGlintEndFraction: Float = 0.58f
 
     // --- Радіальне синє «світіння» (центр біля верхнього краю лиця, як на референсі) ---
     val hazeBlueOuter: Color = Color(0xFF355FAF).copy(alpha = 0.10f)
@@ -257,7 +297,7 @@ internal fun HomeMonoTiltedCard(
     val density = LocalDensity.current.density
     val plateWidth = HomeBankCardFrame.width - (HomeBankCardWidthNarrowPxTotal / density).dp
     Box(
-        modifier = modifier,
+        modifier = modifier.height(HomeBankCardFrame.height),
         contentAlignment = Alignment.Center
     ) {
         Box(
@@ -404,6 +444,49 @@ internal fun HomeMonoCardFaceLayers(
                 size = Size(cardWidth, faceHeight),
                 cornerRadius = CornerRadius(corner, corner)
             )
+
+            if (
+                effectiveThickness > 0f &&
+                fc.volumeBackTop == P.volumeBackTop &&
+                fc.volumeBackBottom == P.volumeBackBottom
+            ) {
+                val edgeGlintTop = faceHeight + 0.2.dp.toPx()
+                val edgeGlintHeight = (effectiveThickness - 0.4.dp.toPx()).coerceAtLeast(0f)
+                if (edgeGlintHeight > 0f) {
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            colorStops = arrayOf(
+                                0f to Color.Transparent,
+                                0.04f to Color.Transparent,
+                                0.16f to P.lowerEdgeVolumeGlintSoft,
+                                0.30f to P.lowerEdgeVolumeGlint,
+                                0.46f to P.lowerEdgeVolumeGlintSoft,
+                                0.62f to Color.Transparent,
+                                1f to Color.Transparent
+                            )
+                        ),
+                        topLeft = Offset(0f, edgeGlintTop),
+                        size = Size(cardWidth, edgeGlintHeight)
+                    )
+                }
+            }
+
+            val glintY = faceHeight - P.lowerEdgeGlintLiftDp.dp.toPx()
+            drawRect(
+                brush = Brush.horizontalGradient(
+                    colorStops = arrayOf(
+                        0f to Color.Transparent,
+                        0.04f to Color.Transparent,
+                        0.1f to P.lowerEdgeGlintSoft,
+                        0.30f to P.lowerEdgeGlint,
+                        0.46f to P.lowerEdgeGlintSoft,
+                        0.64f to Color.Transparent,
+                        1f to Color.Transparent
+                    )
+                ),
+                topLeft = Offset(0f, glintY),
+                size = Size(cardWidth, P.lowerEdgeGlintStrokeDp.dp.toPx())
+            )
         }
 
         val density = LocalDensity.current
@@ -442,24 +525,20 @@ internal fun HomeMonoCardFaceLayers(
             ) {
                 when {
                     numberGroups.isEmpty() -> {
-                        Text(
+                        HomeCardNumberText(
                             text = number,
                             style = numberStyle,
                             modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Clip
+                            textAlign = TextAlign.Center
                         )
                     }
 
                     numberGroups.size == 1 -> {
-                        Text(
+                        HomeCardNumberText(
                             text = numberGroups.first(),
                             style = numberStyle,
                             modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Clip
+                            textAlign = TextAlign.Center
                         )
                     }
 
@@ -470,11 +549,9 @@ internal fun HomeMonoCardFaceLayers(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             numberGroups.forEach { group ->
-                                Text(
+                                HomeCardNumberText(
                                     text = group,
-                                    style = numberStyle,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Clip
+                                    style = numberStyle
                                 )
                             }
                         }

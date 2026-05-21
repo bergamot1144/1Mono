@@ -230,7 +230,7 @@ private val HomeCardsPagerHorizontalPeek = 8.dp
 /** Мінімальний зазор між сторінками в пейджері (основний рух — нативний scroll пейджера). */
 private val HomeCardsPagerPageSpacing = 0.dp
 /** Додаткове зближення тільки пластикових карт між собою (без зближення широких блоків операцій). */
-private val HomeCardsPlateNeighborExtraPull = 54.dp
+private val HomeCardsPlateNeighborExtraPull = 52.dp
 
 /** Між нижнім краєм балансу (чипи) і верхом каруселі. */
 private val HomeSectionGapBalanceToCard = 48.dp
@@ -895,7 +895,7 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     val compression = absO * absO
     val s = lerp(1f, 0.965f, compression).coerceIn(0.95f, 1f)
     scaleX = s
-    scaleY = s
+    scaleY = 1f
     // Двофазний профіль: до 50% сторінки елементи розходяться, після 50% — плавно сходяться.
     val smoothStep: (Float) -> Float = { t ->
         val x = t.coerceIn(0f, 1f)
@@ -1877,16 +1877,16 @@ private fun HomeCardPlaceholder(
     val monobankLogo = rememberAssetImageBitmap(CardMonobankNegateAsset)
     val visaCd = stringResource(R.string.home_card_scheme)
 
-    val rotX = 65f
+    val rotX = 66f
     val rotY = 0f
     val rotZ = 0f
     val cardTransY = 10f
-    val cameraFactor = 15f
+    val cameraFactor = 14f
 
     val numberColor = if (kind == HomeCarouselCardKind.WhiteBlackEdge) {
-        Color(0xFF2C2C32)
+        Color(0xFF1E1E21)
     } else {
-        Color(0xFFB1B2B7)
+        Color(0xFFD4D6D9)
     }
     val numberStyle = TextStyle(
         fontFamily = kreditFront,

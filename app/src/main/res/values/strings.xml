@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">1Mono</string>
+    <string name="app_name">monobank</string>
     <string name="pin_user_display_name">Клієнт 1Mono</string>
     <string name="pin_greeting">З поверненням, %1$s!</string>
     <string name="pin_enter_prompt">Уведіть ПІН-код</string>
