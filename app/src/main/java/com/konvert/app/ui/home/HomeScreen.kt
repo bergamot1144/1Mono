@@ -384,6 +384,12 @@ private const val HomeOperationDetailPatternAlpha = 0.3f
 private const val HomeOperationDetailWalletAsset = "$OperationsLogosPath/Wallet2.png"
 private const val HomeOperationDetailLinkAsset = "$OperationsLogosPath/Link.png"
 private const val HomeOperationDetailShareAsset = "$OperationsLogosPath/share_negate.png"
+private const val HomeOperationDetailRepeatAsset = "$OperationsLogosPath/repeat.png"
+private const val HomeOperationDetailSplitAsset = "$OperationsLogosPath/split.png"
+private const val HomeOperationDetailQuestionAsset = "$OperationsLogosPath/Question.png"
+private const val HomeOperationDetailRegularPaymentAsset = "$OperationsLogosPath/regular_payment.png"
+private const val HomeOperationDetailSaveCardAsset = "$OperationsLogosPath/save_card.png"
+private const val HomeOperationDetailShowPdfAsset = "$OperationsLogosPath/show_pdf.png"
 private const val HomeLimitsAsset = "$OperationsLogosPath/limits_.png"
 private const val HomeForeignAsset = "$OperationsLogosPath/foreign.png"
 private const val HomeUsdAsset = "$OperationsLogosPath/usd.png"
@@ -2426,8 +2432,31 @@ private fun HomeAllOperationsScreen(
 ) {
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
+        val dialogView = LocalView.current
+        DisposableEffect(dialogView) {
+            val window = (dialogView.parent as? DialogWindowProvider)?.window
+            val previousStatusBarColor = window?.statusBarColor
+            val previousNavigationBarColor = window?.navigationBarColor
+            window?.statusBarColor = Color(0xFF5D5ED6).toArgb()
+            window?.navigationBarColor = Color(0xFF252525).toArgb()
+            window?.setLayout(
+                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                android.view.WindowManager.LayoutParams.MATCH_PARENT
+            )
+            onDispose {
+                if (previousStatusBarColor != null) {
+                    window.statusBarColor = previousStatusBarColor
+                }
+                if (previousNavigationBarColor != null) {
+                    window.navigationBarColor = previousNavigationBarColor
+                }
+            }
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -2509,98 +2538,81 @@ private fun HomeOperationDetailScreen(
     operation: HomeOperationUi,
     onDismiss: () -> Unit
 ) {
-    val transferBitmap = rememberAssetImageBitmap("$OperationsLogosPath/$HomeOperationTransferAssetName")
-    val walletBitmap = rememberAssetImageBitmap(HomeOperationDetailWalletAsset)
-    val linkBitmap = rememberAssetImageBitmap(HomeOperationDetailLinkAsset)
+    val transferBitmap = rememberCroppedAssetImageBitmap("$OperationsLogosPath/$HomeOperationTransferAssetName")
+    val walletBitmap = rememberCroppedAssetImageBitmap(HomeOperationDetailWalletAsset)
+    val linkBitmap = rememberCroppedAssetImageBitmap(HomeOperationDetailLinkAsset)
     val shareBitmap = rememberAssetImageBitmap(HomeOperationDetailShareAsset)
+    val splitBitmap = rememberAssetImageBitmap(HomeOperationDetailSplitAsset)
+    val repeatBitmap = rememberAssetImageBitmap(HomeOperationDetailRepeatAsset)
+    val questionBitmap = rememberAssetImageBitmap(HomeOperationDetailQuestionAsset)
+    val regularPaymentBitmap = rememberAssetImageBitmap(HomeOperationDetailRegularPaymentAsset)
+    val saveCardBitmap = rememberAssetImageBitmap(HomeOperationDetailSaveCardAsset)
+    val showPdfBitmap = rememberAssetImageBitmap(HomeOperationDetailShowPdfAsset)
     val commission = operation.commissionAmount ?: "4.00 ₴"
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
+        val dialogView = LocalView.current
+        DisposableEffect(dialogView) {
+            val window = (dialogView.parent as? DialogWindowProvider)?.window
+            val previousStatusBarColor = window?.statusBarColor
+            val previousNavigationBarColor = window?.navigationBarColor
+            window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+            window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color(0xFF262626).toArgb()))
+            window?.decorView?.setBackgroundColor(Color(0xFF262626).toArgb())
+            window?.statusBarColor = Color(0xFF5D5ED6).toArgb()
+            window?.navigationBarColor = Color(0xFF262626).toArgb()
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                window?.isStatusBarContrastEnforced = false
+                window?.isNavigationBarContrastEnforced = false
+            }
+            window?.setLayout(
+                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                android.view.WindowManager.LayoutParams.MATCH_PARENT
+            )
+            onDispose {
+                if (previousStatusBarColor != null) {
+                    window.statusBarColor = previousStatusBarColor
+                }
+                if (previousNavigationBarColor != null) {
+                    window.navigationBarColor = previousNavigationBarColor
+                }
+            }
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0D0D0E))
+                .background(Color(0xFF262626))
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(190.dp)
-                    .background(Color(0xFF6963E7))
-            ) {
-                HomeOperationDetailHeaderPattern(modifier = Modifier.fillMaxSize())
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .statusBarsPadding()
-                        .padding(start = 2.dp, top = 22.dp)
-                        .size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = stringResource(R.string.jar_bank_back_cd),
-                        tint = Color.White,
-                        modifier = Modifier.size(30.dp)
-                    )
-                }
-            }
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
                     .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
             ) {
-                Spacer(modifier = Modifier.height(108.dp))
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                    color = Color(0xFF252525)
-                ) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        Surface(
+                Spacer(modifier = Modifier.height(112.dp))
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                        color = Color(0xFF1D1D1D)
+                    ) {
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                        Box(
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
-                                .offset(y = (-32).dp)
-                                .size(64.dp),
-                            shape = CircleShape,
-                            color = Color(0xFF4738C7)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                if (transferBitmap != null) {
-                                    Image(
-                                        bitmap = transferBitmap,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(36.dp),
-                                        contentScale = ContentScale.Fit
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Filled.CreditCard,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(32.dp)
-                                    )
-                                }
-                            }
-                        }
-                        Surface(
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .offset(x = 26.dp, y = 14.dp)
-                                .size(20.dp),
-                            shape = CircleShape,
-                            color = Color(0xFF83D953)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                tint = Color(0xFF225D19),
-                                modifier = Modifier.padding(4.dp)
-                            )
-                        }
+                                .fillMaxWidth()
+                                .height(270.dp)
+                                .background(
+                                    color = Color(0xFF262626),
+                                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                                )
+                        )
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2630,7 +2642,7 @@ private fun HomeOperationDetailScreen(
                                 color = Color(0xFFE9E9E9),
                                 fontSize = 46.sp,
                                 lineHeight = 50.sp,
-                                fontWeight = FontWeight.Light
+                                fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
@@ -2650,8 +2662,64 @@ private fun HomeOperationDetailScreen(
                             HomeOperationDetailReceiptCard(linkBitmap, shareBitmap)
                         }
                     }
+                    }
                 }
-                HomeOperationDetailActions()
+                HomeOperationDetailActions(
+                    splitBitmap = splitBitmap,
+                    repeatBitmap = repeatBitmap,
+                    saveCardBitmap = saveCardBitmap,
+                    showPdfBitmap = showPdfBitmap,
+                    regularPaymentBitmap = regularPaymentBitmap,
+                    questionBitmap = questionBitmap
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(112.dp)
+                    .background(Color(0xFF5D5ED6))
+            ) {
+                HomeOperationDetailHeaderPattern(modifier = Modifier.fillMaxSize())
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .padding(start = 2.dp, top = 22.dp)
+                        .size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = stringResource(R.string.jar_bank_back_cd),
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+            }
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 80.dp)
+                    .size(64.dp),
+                shape = CircleShape,
+                color = Color(0xFF4738C7)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (transferBitmap != null) {
+                        Image(
+                            bitmap = transferBitmap,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.CreditCard,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -2663,15 +2731,15 @@ private fun HomeOperationDetailHeaderPattern(modifier: Modifier = Modifier) {
         repeat(3) { row ->
             repeat(13) { column ->
                 Image(
-                    painter = painterResource(R.drawable.card_45),
+                    painter = painterResource(
+                        if ((row + column) % 2 == 0) R.drawable.card_45 else R.drawable.billsvg
+                    ),
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .size(HomeOperationDetailPatternIconSize)
                         .offset(
-                            x = (-18).dp +
-                                (HomeOperationDetailPatternStepX * column) +
-                                if (row % 2 == 0) 0.dp else 30.dp,
+                            x = (-18).dp + (HomeOperationDetailPatternStepX * column),
                             y = (-15).dp + (HomeOperationDetailPatternStepY * row)
                         )
                         .graphicsLayer(alpha = HomeOperationDetailPatternAlpha)
@@ -2700,7 +2768,7 @@ private fun HomeOperationDetailTypePill() {
                 .clip(RoundedCornerShape(999.dp))
                 .background(
                     Brush.horizontalGradient(
-                        listOf(Color(0xFF583FD8), Color(0xFF8B4BE5))
+                        listOf(Color(0xFF302D9E), Color(0xFF433FB7))
                     )
                 )
                 .padding(horizontal = 18.dp, vertical = 5.dp)
@@ -2735,11 +2803,13 @@ private fun HomeOperationDetailInviteCard() {
                 RoundedCornerShape(10.dp)
             ),
         shape = RoundedCornerShape(10.dp),
-        color = Color.Transparent
+        color = Color(0xFF262626)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 28.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 17.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
                 modifier = Modifier
@@ -2757,20 +2827,22 @@ private fun HomeOperationDetailInviteCard() {
                     modifier = Modifier.size(18.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(18.dp))
-            Column {
+            Spacer(modifier = Modifier.height(13.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = "Запросити отримувача до monobank",
                     color = Color(0xFFE6E6E6),
                     fontSize = 16.sp,
-                    lineHeight = 19.sp
+                    lineHeight = 19.sp,
+                    textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(5.dp))
                 Text(
                     text = "Та отримати 100 ₴ на рахунок кешбеку",
                     color = Color(0xFF8B8B8F),
                     fontSize = 14.sp,
-                    lineHeight = 17.sp
+                    lineHeight = 17.sp,
+                    textAlign = TextAlign.Center
                 )
             }
         }
@@ -2782,7 +2854,7 @@ private fun HomeOperationDetailPlaceholderRow() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        color = Color(0xFF2A2A2A)
+        color = Color(0xFF262626)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -2809,7 +2881,7 @@ private fun HomeOperationDetailBalanceCard(walletBitmap: ImageBitmap?) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        color = Color(0xFF2A2A2A)
+        color = Color(0xFF262626)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -2818,15 +2890,22 @@ private fun HomeOperationDetailBalanceCard(walletBitmap: ImageBitmap?) {
             Box(
                 modifier = Modifier
                     .size(30.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF6558F3)),
+                    .then(
+                        if (walletBitmap == null) {
+                            Modifier
+                                .clip(CircleShape)
+                                .background(Color(0xFF6558F3))
+                        } else {
+                            Modifier
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 if (walletBitmap != null) {
                     Image(
                         bitmap = walletBitmap,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit
                     )
                 } else {
@@ -2862,10 +2941,10 @@ private fun HomeOperationDetailSpentChart() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        color = Color(0xFF2A2A2A)
+        color = Color(0xFF262626)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp)
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -2894,44 +2973,67 @@ private fun HomeOperationDetailSpentChart() {
                         .background(Color.White.copy(alpha = 0.13f))
                 )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Canvas(
+            Spacer(modifier = Modifier.height(8.dp))
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(118.dp)
+                    .height(142.dp)
             ) {
-                val axis = Color.White.copy(alpha = 0.18f)
-                val leftInset = 44.dp.toPx()
-                val bottomInset = 24.dp.toPx()
-                val topInset = 6.dp.toPx()
-                val chartWidth = size.width - leftInset - 6.dp.toPx()
-                val chartHeight = size.height - bottomInset - topInset
-                listOf(0f, 0.5f, 1f).forEach { fraction ->
-                    val y = topInset + chartHeight * (1f - fraction)
-                    drawLine(
-                        color = axis,
-                        start = Offset(leftInset, y),
-                        end = Offset(leftInset + chartWidth, y),
-                        strokeWidth = 1.dp.toPx(),
-                        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(4f, 4f))
-                    )
+                val leftInset = 44.dp
+                val chartWidth = maxWidth - leftInset - 6.dp
+                val chartLabels = listOf("Р»РёСЃ", "РіСЂСѓ", "СЃС–С‡", "Р»СЋС‚", "Р±РµСЂ", "РєРІС–")
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val axis = Color.White.copy(alpha = 0.2f)
+                    val leftInsetPx = leftInset.toPx()
+                    val bottomInset = 28.dp.toPx()
+                    val topInset = 8.dp.toPx()
+                    val chartWidthPx = size.width - leftInsetPx - 6.dp.toPx()
+                    val chartHeight = size.height - bottomInset - topInset
+                    listOf(0f, 0.5f, 1f).forEach { fraction ->
+                        val y = topInset + chartHeight * (1f - fraction)
+                        drawLine(
+                            color = axis,
+                            start = Offset(leftInsetPx, y),
+                            end = Offset(leftInsetPx + chartWidthPx, y),
+                            strokeWidth = 1.dp.toPx(),
+                            pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(4f, 4f))
+                        )
+                    }
+                    val bars = listOf(0.03f, 0.03f, 0.03f, 0.86f, 0.03f, 0.48f)
+                    val barWidth = 16.dp.toPx()
+                    val gap = (chartWidthPx - barWidth * bars.size) / (bars.size + 1)
+                    bars.forEachIndexed { index, value ->
+                        val left = leftInsetPx + gap + index * (barWidth + gap)
+                        val barHeight = chartHeight * value
+                        drawRoundRect(
+                            brush = Brush.verticalGradient(
+                                listOf(Color(0xFFD83BAC), Color(0xFF4A43CB)),
+                                startY = topInset + chartHeight - barHeight,
+                                endY = topInset + chartHeight
+                            ),
+                            topLeft = Offset(left, topInset + chartHeight - barHeight),
+                            size = Size(barWidth, barHeight),
+                            cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
+                        )
+                    }
                 }
-                val bars = listOf(0.05f, 0.04f, 0.03f, 0.92f, 0.04f, 0.48f)
-                val barWidth = 16.dp.toPx()
-                val gap = (chartWidth - barWidth * bars.size) / (bars.size + 1)
-                bars.forEachIndexed { index, value ->
-                    val left = leftInset + gap + index * (barWidth + gap)
-                    val barHeight = chartHeight * value
-                    drawRoundRect(
-                        brush = Brush.verticalGradient(
-                            listOf(Color(0xFFD73DAA), Color(0xFF4A43CB)),
-                            startY = topInset + chartHeight - barHeight,
-                            endY = topInset + chartHeight
-                        ),
-                        topLeft = Offset(left, topInset + chartHeight - barHeight),
-                        size = Size(barWidth, barHeight),
-                        cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
-                    )
+                Text("200 в‚ґ", color = Color(0xFFE1E1E1), fontSize = 12.sp, modifier = Modifier.offset(x = 0.dp, y = 2.dp))
+                Text("100 в‚ґ", color = Color(0xFFE1E1E1), fontSize = 12.sp, modifier = Modifier.offset(x = 0.dp, y = 46.dp))
+                Text("0 в‚ґ", color = Color(0xFFE1E1E1), fontSize = 12.sp, modifier = Modifier.offset(x = 10.dp, y = 89.dp))
+                Row(
+                    modifier = Modifier
+                        .offset(x = leftInset, y = 114.dp)
+                        .requiredWidth(chartWidth),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    chartLabels.forEach { label ->
+                        Text(
+                            text = label,
+                            color = Color(0xFF8B8B8F),
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
@@ -2943,7 +3045,7 @@ private fun HomeOperationDetailReceiptCard(linkBitmap: ImageBitmap?, shareBitmap
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        color = Color(0xFF2A2A2A)
+        color = Color(0xFF262626)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
@@ -2952,15 +3054,22 @@ private fun HomeOperationDetailReceiptCard(linkBitmap: ImageBitmap?, shareBitmap
                 Box(
                     modifier = Modifier
                         .size(32.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF4D77E9)),
+                        .then(
+                            if (linkBitmap == null) {
+                                Modifier
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF4D77E9))
+                            } else {
+                                Modifier
+                            }
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     if (linkBitmap != null) {
                         Image(
                             bitmap = linkBitmap,
                             contentDescription = null,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Fit
                         )
                     } else {
@@ -3019,7 +3128,14 @@ private fun HomeOperationDetailReceiptCard(linkBitmap: ImageBitmap?, shareBitmap
 }
 
 @Composable
-private fun HomeOperationDetailActions() {
+private fun HomeOperationDetailActions(
+    splitBitmap: ImageBitmap?,
+    repeatBitmap: ImageBitmap?,
+    saveCardBitmap: ImageBitmap?,
+    showPdfBitmap: ImageBitmap?,
+    regularPaymentBitmap: ImageBitmap?,
+    questionBitmap: ImageBitmap?
+) {
     val rows = listOf(
         "Розділити витрату" to Icons.Filled.Layers,
         "Повторити платіж" to Icons.Filled.CreditCard,
@@ -3031,7 +3147,7 @@ private fun HomeOperationDetailActions() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF272727))
+            .background(Color(0xFF262626))
             .padding(horizontal = 16.dp)
     ) {
         rows.forEachIndexed { index, row ->
@@ -3045,12 +3161,30 @@ private fun HomeOperationDetailActions() {
                     .padding(vertical = 17.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = row.second,
-                    contentDescription = null,
-                    tint = Color(0xFFE4E4E4),
-                    modifier = Modifier.size(24.dp)
-                )
+                val actionBitmap = when (index) {
+                    0 -> splitBitmap
+                    1 -> repeatBitmap
+                    2 -> saveCardBitmap
+                    3 -> showPdfBitmap
+                    4 -> regularPaymentBitmap
+                    5 -> questionBitmap
+                    else -> null
+                }
+                if (actionBitmap != null) {
+                    Image(
+                        bitmap = actionBitmap,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.size(34.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = row.second,
+                        contentDescription = null,
+                        tint = Color(0xFFE4E4E4),
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.width(24.dp))
                 Text(
                     text = row.first,

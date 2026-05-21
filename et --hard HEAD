@@ -1,0 +1,175 @@
+[33mcommit ddbe4e67e5ea8865736fc985ccc2caa718eeff28[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mcodex/slider-animo-v0.0.2[m[33m)[m
+Author: bergamot1144 <bergamot.ads1@gmail.com>
+Date:   Thu May 21 15:51:46 2026 +0300
+
+    сделан макет страницы конкретной операции, добавлена иконка card_45
+
+[33mcommit f8b8767231958c9e4517fee27b453ef888c2b6ec[m[33m ([m[1;31morigin/codex/slider-animo-v0.0.2[m[33m)[m
+Author: bergamot1144 <bergamot.ads1@gmail.com>
+Date:   Thu May 21 14:41:18 2026 +0300
+
+    Блик на ребре черной карты
+
+[33mcommit a1e87fbd07e9d7aec638d42dd79103a11ba208bb[m[33m ([m[1;31morigin/codex/stability-icons-and-details[m[33m, [m[1;32mcursor/slider[m[33m, [m[1;32mcodex/stability-icons-and-details[m[33m, [m[1;32mcodex/slider[m[33m, [m[1;32mcodex/adaptive-design-v0.0.1[m[33m)[m
+Author: bergamot1144 <bergamot.ads1@gmail.com>
+Date:   Tue May 12 20:31:21 2026 +0300
+
+    release v0.0.1
+
+[33mcommit 383eb4fe9c2d5cd6e85642cd1a018922e3443069[m
+Author: bergamot1144 <bergamot.ads1@gmail.com>
+Date:   Tue May 12 16:01:36 2026 +0300
+
+    new icons, link-transfers-page
+
+[33mcommit 0825767ff055a40f82ab1de415f130dbde6b152d[m
+Author: bergamot1144 <bergamot.ads1@gmail.com>
+Date:   Fri May 8 20:51:13 2026 +0300
+
+    icons, туман
+
+[33mcommit a66978ac23fb86ebd8783270de83b03da35a373e[m
+Author: bergamot1144 <bergamot.ads1@gmail.com>
+Date:   Fri May 8 19:42:34 2026 +0300
+
+    change profile photo, some new icons added
+
+[33mcommit 4597a6ce3fe430dcc1b21eb297fb17cc840c5949[m
+Author: bergamot1144 <bergamot.ads1@gmail.com>
+Date:   Thu May 7 12:30:33 2026 +0300
+
+    icons, jar
+
+[33mcommit 5075872c3514ca0023416b07a6957d5fdb57bf22[m[33m ([m[1;32mcodex/task-title-dpbixz[m[33m)[m
+Author: bergamot1144 <bergamot.ads1@gmail.com>
+Date:   Mon Apr 20 16:07:30 2026 +0300
+
+    fixed animation / fixed background gradient
+
+[33mcommit 3e1c3961d365498ccd1b1a6b9f2239e02c2cb373[m
+Author: bergamot1144 <bergamot.ads1@gmail.com>
+Date:   Mon Apr 20 14:23:43 2026 +0300
+
+    fixed animation between cards
+
+[33mcommit 96e5a6ffdba5377fecdda39fffcd9cb01a1612f5[m[33m ([m[1;31morigin/codex/task-title-dpbixz[m[33m)[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 13:43:55 2026 +0300
+
+    Make stretch reverse after midpoint for smooth convergence
+
+[33mcommit 4c0fe93ca047a99c91eed4b0806a5d5c38dd272d[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 13:37:31 2026 +0300
+
+    Increase carousel stretch distance during swipe
+
+[33mcommit b1c152477896b47062e9a27c278d59e7af75aa7f[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 13:31:57 2026 +0300
+
+    Restore full-width pager content and smooth outgoing stretch
+
+[33mcommit 20f202f0e35504c30c6726e1e47254709e0f348a[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 13:24:42 2026 +0300
+
+    Always show neighbor cards and restore operations width
+
+[33mcommit 9855002d6e074282eb0e18c99e502dd9b2b2a32e[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 12:13:08 2026 +0300
+
+    Restore side-card visibility and reduce perspective asymmetry
+
+[33mcommit d7e7b0f70999251c7b1aecf000114358f8e850cd[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 12:07:17 2026 +0300
+
+    Simplify pager motion for continuous smooth carousel transitions
+
+[33mcommit 0c946db3fe493121fd81f2385f1f1d784ded5f51[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 11:55:48 2026 +0300
+
+    Anchor swipe phase mapping to settled page to remove mid-transition jerk
+
+[33mcommit c65e2341314ad192077e061d7cad808633747210[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 11:51:25 2026 +0300
+
+    Smooth outgoing/incoming phases for continuous carousel motion
+
+[33mcommit eb64c548fc23e2ac48e949f4f4d9e91412191f94[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 11:47:30 2026 +0300
+
+    Make outgoing page reach side slot earlier than incoming
+
+[33mcommit 7bb831ec450847150e6716ba045df95d42ff2507[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 11:37:49 2026 +0300
+
+    Increase outgoing lead and keep incoming page held longer
+
+[33mcommit 4aa3ca73b5c6dd3d5a9dff4120a94758d5d2eb17[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 11:23:04 2026 +0300
+
+    Separate card proximity from operations spacing in pager
+
+[33mcommit b49ae3a2105390e0ec1f54186389b5b2f263c3e2[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 11:16:27 2026 +0300
+
+    Delay incoming snap and add spacing between operation blocks
+
+[33mcommit af912071e7784f52b116e1fdbb0730a620ffb12a[m
+Author: DMYTRO POLONSKYI <159416688+bergamot1144@users.noreply.github.com>
+Date:   Mon Apr 20 11:05:12 2026 +0300
+
+    Move balance and actions back into pager motion block
+
+[33mcommit c49db5d5030ba6a86e2447ed701070ebfd605a42[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m
+Author: bergamot1144 <bergamot.ads1@gmail.com>
+Date:   Sun Apr 19 22:28:42 2026 +0300
+
+    анимация переключения экранов карт
+
+[33mcommit b725d9fee90548f00e530b04bd98cd2340015eda[m
+Author: bergamot1144 <bergamot.ads1@gmail.com>
+Date:   Sun Apr 19 22:21:22 2026 +0300
+
+    дистанция между блоками
+
+[33mcommit 4003fd9237c22dee604bea1c8efd7c823670ccd3[m
+Author: bergamot1144 <bergamot.ads1@gmail.com>
+Date:   Sun Apr 19 19:18:24 2026 +0300
+
+    fixed animation
+
+[33mcommit 17361f2f07520208000d6497342df704f87fc1f2[m
+Author: DMYTRO POLONSKYI <bergamot.ads1@gmail.com>
+Date:   Wed Apr 15 00:25:45 2026 +0300
+
+    добавлены подстраницы в накоплениях, добавлена возможность в настройках профиля редактировать некоторые данные по аккаунту
+
+[33mcommit 3438adb13ff6a1674a208ae9ee5c5c755c73bd48[m
+Author: DMYTRO POLONSKYI <bergamot.ads1@gmail.com>
+Date:   Tue Apr 14 06:39:06 2026 +0300
+
+    99% ready card UI, added Profile page, banka page
+
+[33mcommit 832628fb2864c94eb43eabcf36bc756a70e64d5c[m
+Author: DMYTRO POLONSKYI <bergamot.ads1@gmail.com>
+Date:   Mon Apr 13 06:14:47 2026 +0300
+
+    create 1 variant of Card UI, added a lot of icons on homepage
+
+[33mcommit f85054db29c158721d27325c26d48c7231ada44f[m
+Author: DMYTRO POLONSKYI <bergamot.ads1@gmail.com>
+Date:   Sun Apr 12 01:48:29 2026 +0300
+
+    Initial commit: Konvert Android app (PIN lock, home banking UI)
+    
+    Made-with: Cursor
