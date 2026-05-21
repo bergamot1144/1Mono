@@ -8,6 +8,7 @@ import kotlin.math.floor
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
@@ -50,6 +51,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -95,6 +97,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -320,6 +323,9 @@ private val HomeUsefulTilesRowSpacing = 16.dp
 /** Зазор між двома плитками в одному ряду. */
 private val HomeUsefulTilesHorizontalSpacing = 18.dp
 private val HomeQuickActionIconSize = 22.dp
+private val HomeTopBarTopOffset = 6.dp
+private val HomeTopProfileButtonSize = 36.dp
+private val HomeTopProfileFallbackIconSize = 18.dp
 private const val HomeTopAssetIconScaleY = 1.12f
 private const val HomeTopProfileMessageScale = 1.22f
 private const val HomeTopStatsScale = 1.36f
@@ -371,6 +377,13 @@ private const val HomeUsefulQrAsset = "$OperationsLogosPath/qr-scan.png"
 private const val HomeUsefulQuestionsAsset = "$OperationsLogosPath/questions.png"
 private const val HomeUsefulSupportAsset = "$OperationsLogosPath/support.png"
 private const val HomeOperationTransferAssetName = "transfer.png"
+private val HomeOperationDetailPatternIconSize = 40.dp
+private val HomeOperationDetailPatternStepX = 40.dp
+private val HomeOperationDetailPatternStepY = 40.dp
+private const val HomeOperationDetailPatternAlpha = 0.3f
+private const val HomeOperationDetailWalletAsset = "$OperationsLogosPath/Wallet2.png"
+private const val HomeOperationDetailLinkAsset = "$OperationsLogosPath/Link.png"
+private const val HomeOperationDetailShareAsset = "$OperationsLogosPath/share_negate.png"
 private const val HomeLimitsAsset = "$OperationsLogosPath/limits_.png"
 private const val HomeForeignAsset = "$OperationsLogosPath/foreign.png"
 private const val HomeUsdAsset = "$OperationsLogosPath/usd.png"
@@ -1516,7 +1529,9 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
     val cashbackChipSemantics =
         stringResource(R.string.home_cashback_chip_semantics, bonusAmountText)
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = HomeTopBarTopOffset),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -1525,7 +1540,7 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(HomeTopProfileButtonSize)
                     .clip(CircleShape)
                     .background(AvatarPlaceholder)
                     .clickable(
@@ -1547,7 +1562,7 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
                         imageVector = Icons.Outlined.Person,
                         contentDescription = stringResource(R.string.home_profile_cd),
                         tint = HomeBalanceMainAmountColor,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(HomeTopProfileFallbackIconSize)
                     )
                 }
             }
@@ -2494,6 +2509,12 @@ private fun HomeOperationDetailScreen(
     operation: HomeOperationUi,
     onDismiss: () -> Unit
 ) {
+    val transferBitmap = rememberAssetImageBitmap("$OperationsLogosPath/$HomeOperationTransferAssetName")
+    val walletBitmap = rememberAssetImageBitmap(HomeOperationDetailWalletAsset)
+    val linkBitmap = rememberAssetImageBitmap(HomeOperationDetailLinkAsset)
+    val shareBitmap = rememberAssetImageBitmap(HomeOperationDetailShareAsset)
+    val commission = operation.commissionAmount ?: "4.00 ₴"
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -2501,72 +2522,553 @@ private fun HomeOperationDetailScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0B0B0D))
-                .statusBarsPadding()
-                .navigationBarsPadding()
+                .background(Color(0xFF0D0D0E))
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(190.dp)
+                    .background(Color(0xFF6963E7))
+            ) {
+                HomeOperationDetailHeaderPattern(modifier = Modifier.fillMaxSize())
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .padding(start = 2.dp, top = 22.dp)
+                        .size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = stringResource(R.string.jar_bank_back_cd),
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+            }
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 14.dp)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = stringResource(R.string.jar_bank_back_cd),
-                            tint = Color.White
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(40.dp))
-                }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(108.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color(0xFF242428)
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    color = Color(0xFF252525)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = operation.title,
-                            color = Color.White,
-                            fontSize = 34.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = operation.dateLabel,
-                            color = PinPromptText,
-                            fontSize = 22.sp
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = operation.amount,
-                            color = Color.White,
-                            fontSize = 52.sp,
-                            fontWeight = FontWeight.Light
-                        )
-                        operation.commissionAmount?.let { commission ->
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = stringResource(R.string.home_operation_commission, commission),
-                                color = PinPromptText,
-                                fontSize = 22.sp
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .offset(y = (-32).dp)
+                                .size(64.dp),
+                            shape = CircleShape,
+                            color = Color(0xFF4738C7)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                if (transferBitmap != null) {
+                                    Image(
+                                        bitmap = transferBitmap,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(36.dp),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Filled.CreditCard,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .offset(x = 26.dp, y = 14.dp)
+                                .size(20.dp),
+                            shape = CircleShape,
+                            color = Color(0xFF83D953)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = Color(0xFF225D19),
+                                modifier = Modifier.padding(4.dp)
                             )
+                        }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 42.dp, bottom = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = operation.title,
+                                color = Color(0xFFE6E6E6),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            HomeOperationDetailTypePill()
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Text(
+                                text = operation.dateLabel.ifBlank { "10 квітня 2026, 14:27" },
+                                color = Color(0xFF8D8D91),
+                                fontSize = 16.sp
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = operation.amount,
+                                color = Color(0xFFE9E9E9),
+                                fontSize = 46.sp,
+                                lineHeight = 50.sp,
+                                fontWeight = FontWeight.Light
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Комісія $commission",
+                                color = Color(0xFF8B8B8F),
+                                fontSize = 15.sp
+                            )
+                            Spacer(modifier = Modifier.height(28.dp))
+                            HomeOperationDetailInviteCard()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            HomeOperationDetailPlaceholderRow()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            HomeOperationDetailBalanceCard(walletBitmap)
+                            Spacer(modifier = Modifier.height(18.dp))
+                            HomeOperationDetailSpentChart()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            HomeOperationDetailReceiptCard(linkBitmap, shareBitmap)
                         }
                     }
                 }
+                HomeOperationDetailActions()
             }
         }
+    }
+}
+
+@Composable
+private fun HomeOperationDetailHeaderPattern(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.clipToBounds()) {
+        repeat(3) { row ->
+            repeat(13) { column ->
+                Image(
+                    painter = painterResource(R.drawable.card_45),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .size(HomeOperationDetailPatternIconSize)
+                        .offset(
+                            x = (-18).dp +
+                                (HomeOperationDetailPatternStepX * column) +
+                                if (row % 2 == 0) 0.dp else 30.dp,
+                            y = (-15).dp + (HomeOperationDetailPatternStepY * row)
+                        )
+                        .graphicsLayer(alpha = HomeOperationDetailPatternAlpha)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeOperationDetailTypePill() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(Color.White.copy(alpha = 0.12f))
+        )
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 10.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(Color(0xFF583FD8), Color(0xFF8B4BE5))
+                    )
+                )
+                .padding(horizontal = 18.dp, vertical = 5.dp)
+        ) {
+            Text(
+                text = "Переказ на картку  ✎",
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                lineHeight = 14.sp
+            )
+        }
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(Color.White.copy(alpha = 0.12f))
+        )
+    }
+}
+
+@Composable
+private fun HomeOperationDetailInviteCard() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                BorderStroke(
+                    1.4.dp,
+                    Brush.horizontalGradient(listOf(Color(0xFF7D24F0), Color(0xFFFF2C9D)))
+                ),
+                RoundedCornerShape(10.dp)
+            ),
+        shape = RoundedCornerShape(10.dp),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 28.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(listOf(Color(0xFF7D31F2), Color(0xFFFF3A91)))
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.SupportAgent,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(18.dp))
+            Column {
+                Text(
+                    text = "Запросити отримувача до monobank",
+                    color = Color(0xFFE6E6E6),
+                    fontSize = 16.sp,
+                    lineHeight = 19.sp
+                )
+                Spacer(modifier = Modifier.height(5.dp))
+                Text(
+                    text = "Та отримати 100 ₴ на рахунок кешбеку",
+                    color = Color(0xFF8B8B8F),
+                    fontSize = 14.sp,
+                    lineHeight = 17.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeOperationDetailPlaceholderRow() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFF2A2A2A)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Description,
+                contentDescription = null,
+                tint = Color(0xFF77777B),
+                modifier = Modifier.size(17.dp)
+            )
+            Spacer(modifier = Modifier.width(18.dp))
+            Text(
+                text = "Опис та #теги",
+                color = Color(0xFF77777B),
+                fontSize = 16.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeOperationDetailBalanceCard(walletBitmap: ImageBitmap?) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFF2A2A2A)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF6558F3)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (walletBitmap != null) {
+                    Image(
+                        bitmap = walletBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.AccountBalanceWallet,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(18.dp))
+            Column {
+                Text(
+                    text = "Залишок",
+                    color = Color(0xFF8A8A8D),
+                    fontSize = 16.sp,
+                    lineHeight = 18.sp
+                )
+                Text(
+                    text = "2 781.49 ₴",
+                    color = Color(0xFFE9E9E9),
+                    fontSize = 18.sp,
+                    lineHeight = 20.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeOperationDetailSpentChart() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFF2A2A2A)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(1.dp)
+                        .background(Color.White.copy(alpha = 0.13f))
+                )
+                Text(
+                    text = "Витратили 299 ₴ за півроку",
+                    color = Color(0xFF96969A),
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 12.dp, vertical = 3.dp)
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(1.dp)
+                        .background(Color.White.copy(alpha = 0.13f))
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(118.dp)
+            ) {
+                val axis = Color.White.copy(alpha = 0.18f)
+                val leftInset = 44.dp.toPx()
+                val bottomInset = 24.dp.toPx()
+                val topInset = 6.dp.toPx()
+                val chartWidth = size.width - leftInset - 6.dp.toPx()
+                val chartHeight = size.height - bottomInset - topInset
+                listOf(0f, 0.5f, 1f).forEach { fraction ->
+                    val y = topInset + chartHeight * (1f - fraction)
+                    drawLine(
+                        color = axis,
+                        start = Offset(leftInset, y),
+                        end = Offset(leftInset + chartWidth, y),
+                        strokeWidth = 1.dp.toPx(),
+                        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(4f, 4f))
+                    )
+                }
+                val bars = listOf(0.05f, 0.04f, 0.03f, 0.92f, 0.04f, 0.48f)
+                val barWidth = 16.dp.toPx()
+                val gap = (chartWidth - barWidth * bars.size) / (bars.size + 1)
+                bars.forEachIndexed { index, value ->
+                    val left = leftInset + gap + index * (barWidth + gap)
+                    val barHeight = chartHeight * value
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            listOf(Color(0xFFD73DAA), Color(0xFF4A43CB)),
+                            startY = topInset + chartHeight - barHeight,
+                            endY = topInset + chartHeight
+                        ),
+                        topLeft = Offset(left, topInset + chartHeight - barHeight),
+                        size = Size(barWidth, barHeight),
+                        cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeOperationDetailReceiptCard(linkBitmap: ImageBitmap?, shareBitmap: ImageBitmap?) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFF2A2A2A)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF4D77E9)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (linkBitmap != null) {
+                        Image(
+                            bitmap = linkBitmap,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Icon(Icons.AutoMirrored.Filled.ReceiptLong, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Посилання на квитанцію",
+                        color = Color(0xFFE2E2E2),
+                        fontSize = 17.sp
+                    )
+                    Text(
+                        text = "check.monobank.ua/p/6gKR0bczqRK9Q...",
+                        color = Color(0xFF8B8B8F),
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(14.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = Color(0xFF3A3A3A)
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 11.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (shareBitmap != null) {
+                        Image(
+                            bitmap = shareBitmap,
+                            contentDescription = null,
+                            modifier = Modifier.size(17.dp),
+                            colorFilter = ColorFilter.tint(Color(0xFFE6E6E6)),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Text("⌘", color = Color(0xFFE6E6E6), fontSize = 16.sp)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Поділитися",
+                        color = Color(0xFFE6E6E6),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeOperationDetailActions() {
+    val rows = listOf(
+        "Розділити витрату" to Icons.Filled.Layers,
+        "Повторити платіж" to Icons.Filled.CreditCard,
+        "Зберегти картку" to Icons.Filled.CreditCard,
+        "Переглянути PDF-квитанцію" to Icons.AutoMirrored.Filled.ReceiptLong,
+        "Зробити регулярним" to Icons.Outlined.Settings,
+        "Поставити запитання" to Icons.Filled.QuestionMark
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF272727))
+            .padding(horizontal = 16.dp)
+    ) {
+        rows.forEachIndexed { index, row ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { }
+                    .padding(vertical = 17.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = row.second,
+                    contentDescription = null,
+                    tint = Color(0xFFE4E4E4),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(24.dp))
+                Text(
+                    text = row.first,
+                    color = Color(0xFFE4E4E4),
+                    fontSize = 18.sp
+                )
+            }
+            if (index != rows.lastIndex) {
+                Box(
+                    modifier = Modifier
+                        .padding(start = 56.dp)
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Color.White.copy(alpha = 0.10f))
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 

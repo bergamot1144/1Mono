@@ -77,6 +77,8 @@ private val SavingsJarProgressTrack = Color(0xFF21141C)
 private val SavingsJarProgressFill = Color(0xFFBB3789)
 private val SavingsHeaderIndicatorActive = Color(0xFFFFFDFC)
 private val SavingsHeaderIndicatorInactive = Color(0xFF6DA8DF)
+private val SavingsHeaderTopContentOffset = 6.dp
+private val SavingsActionsCarouselTop = 154.dp
 private const val SavingsTrizubecIconAsset = "operations_logos/trizubec.png"
 private const val SavingsArchiveIconAsset = "operations_logos/Archive.png"
 private const val SavingsJarsIconAsset = "operations_logos/jars.png"
@@ -209,7 +211,7 @@ fun SavingsTabScreen(
                             onClick = { },
                             modifier = Modifier
                                 .size(48.dp)
-                                .offset(y = (-6).dp)
+                                .offset(y = SavingsHeaderTopContentOffset - 6.dp)
                                 .align(Alignment.TopEnd)
                         ) {
                             if (infoBitmap != null) {
@@ -232,7 +234,7 @@ fun SavingsTabScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .align(Alignment.TopCenter)
-                                .padding(top = 4.dp),
+                                .padding(top = 4.dp + SavingsHeaderTopContentOffset),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             HorizontalPager(
@@ -342,7 +344,7 @@ fun SavingsTabScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(top = 130.dp)
+                    .padding(top = SavingsActionsCarouselTop)
                     .zIndex(2f)
                     .height(146.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp),
