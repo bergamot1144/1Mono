@@ -109,7 +109,9 @@ data class CardOperationAdminConfig(
     val amount: String = "-100 ₴",
     val dateLabel: String = "Сьогодні",
     val hasCommission: Boolean = false,
-    val commissionAmount: String = "0 ₴"
+    val commissionAmount: String = "0 ₴",
+    val receiptNumber: String = "CHEA-EKE4-3M3A-A37P",
+    val receiptPdfUri: String? = null
 )
 
 @Serializable

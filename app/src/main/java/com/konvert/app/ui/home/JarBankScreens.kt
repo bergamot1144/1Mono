@@ -253,6 +253,11 @@ internal fun JarBankDetailScreen(
         WindowInsets.statusBars.getTop(this).toDp()
     }
     val sheetTop = statusBarTop + darkSheetTopInset
+    SystemBarsColorEffect(
+        statusBarColor = JarHeaderPink,
+        navigationBarColor = JarScreenBg,
+        decorBackgroundColor = JarScreenBg
+    )
 
     Box(
         modifier = modifier
@@ -1163,6 +1168,11 @@ internal fun JarBankShareScreen(
     val admin = LocalAppAdmin.current
     val jar = admin?.state?.jarOrDefault(jarIndex) ?: JarAdminConfig()
     val subtitle = stringResource(R.string.jar_share_subtitle_fmt, jar.name, jar.targetDisplay)
+    SystemBarsColorEffect(
+        statusBarColor = ShareScreenBg,
+        navigationBarColor = ShareScreenBg,
+        decorBackgroundColor = ShareScreenBg
+    )
     Column(
         modifier = modifier
             .fillMaxSize()

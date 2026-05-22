@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.konvert.app.R
+import com.konvert.app.ui.home.SystemBarsColorEffect
 import java.util.Locale
 
 private val SavingsScreenBg = Color(0xFF121212)
@@ -180,6 +181,11 @@ fun SavingsTabScreen(
         SavingsHeaderSlide(R.string.savings_header_title_uah, uahBalanceText),
         SavingsHeaderSlide(R.string.savings_header_title_usd, usdBalanceText),
         SavingsHeaderSlide(R.string.savings_header_title_eur, eurBalanceText)
+    )
+    SystemBarsColorEffect(
+        statusBarColor = SavingsHeaderTop,
+        navigationBarColor = SavingsScreenBg,
+        decorBackgroundColor = SavingsScreenBg
     )
     val headerPagerState = rememberPagerState(pageCount = { headerSlides.size })
     Column(

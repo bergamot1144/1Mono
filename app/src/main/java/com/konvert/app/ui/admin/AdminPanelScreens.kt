@@ -361,6 +361,7 @@ fun CardOperationsAdminPanel(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val defaultOperationTitle = stringResource(R.string.admin_card_operation_default_title)
     val defaultOperationAmount = stringResource(R.string.admin_card_operation_default_amount)
     val defaultOperationDate = stringResource(R.string.admin_card_operation_default_date)
@@ -475,6 +476,31 @@ fun CardOperationsAdminPanel(
                         }
                     )
                 }
+                AdminLabeledField(
+                    label = "\u2116 \u043A\u0432\u0438\u0442\u0430\u043D\u0446\u0456\u0457",
+                    value = operation.receiptNumber,
+                    onValueChange = { value ->
+                        operations = operations.mapIndexed { i, op ->
+                            if (i == opIndex) op.copy(receiptNumber = value) else op
+                        }
+                    }
+                )
+                AdminPdfPickerRow(
+                    pdfUri = operation.receiptPdfUri,
+                    onPdfPicked = { uri ->
+                        operations = operations.mapIndexed { i, op ->
+                            if (i == opIndex) op.copy(receiptPdfUri = uri) else op
+                        }
+                    },
+                    onPersistPermission = { uri ->
+                        runCatching {
+                            context.contentResolver.takePersistableUriPermission(
+                                uri,
+                                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            )
+                        }
+                    }
+                )
                 Button(
                     onClick = { operations = operations.filterIndexed { i, _ -> i != opIndex } },
                     modifier = Modifier.fillMaxWidth(),
@@ -915,6 +941,68 @@ fun JarTransactionsAdminPanel(
                 colors = ButtonDefaults.buttonColors(containerColor = AdminGreen)
             ) {
                 Text(stringResource(R.string.admin_jar_confirm), color = Color.White, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminPdfPickerRow(
+    pdfUri: String?,
+    onPdfPicked: (String?) -> Unit,
+    onPersistPermission: (Uri) -> Unit
+) {
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            onPersistPermission(uri)
+            onPdfPicked(uri.toString())
+        }
+    }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = AdminCardBg
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "PDF-\u043A\u0432\u0438\u0442\u0430\u043D\u0446\u0456\u044F",
+                color = AdminLabel,
+                fontSize = 13.sp
+            )
+            Text(
+                text = pdfUri?.takeIf { it.isNotBlank() } ?: "\u0424\u0430\u0439\u043B \u043D\u0435 \u0432\u0438\u0431\u0440\u0430\u043D\u043E",
+                color = Color.White.copy(alpha = 0.82f),
+                fontSize = 12.sp,
+                maxLines = 1
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = { picker.launch(arrayOf("application/pdf")) },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AdminBlue)
+                ) {
+                    Text(
+                        text = "\u0412\u0438\u0431\u0440\u0430\u0442\u0438 PDF",
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                if (!pdfUri.isNullOrBlank()) {
+                    Button(
+                        onClick = { onPdfPicked(null) },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6B2A2A))
+                    ) {
+                        Text(
+                            text = "\u041E\u0447\u0438\u0441\u0442\u0438\u0442\u0438",
+                            color = Color.White,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
         }
     }

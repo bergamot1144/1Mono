@@ -131,6 +131,11 @@ internal fun JarTopUpTransactionsScreen(
 
     val screenBg =
         if (category == JarTopUpCategory.Link) JarTxnLinkSectionBg else JarTxnScreenBg
+    SystemBarsColorEffect(
+        statusBarColor = screenBg,
+        navigationBarColor = screenBg,
+        decorBackgroundColor = screenBg
+    )
     Column(
         modifier = modifier
             .fillMaxSize()

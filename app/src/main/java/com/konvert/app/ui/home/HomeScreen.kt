@@ -1,7 +1,11 @@
 package com.konvert.app.ui.home
 
+import android.content.ClipData
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.pdf.PdfRenderer
+import android.net.Uri
 import android.graphics.Typeface
 import kotlin.math.abs
 import kotlin.math.floor
@@ -9,6 +13,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
@@ -20,6 +25,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -74,9 +80,12 @@ import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -170,34 +179,40 @@ import com.airbnb.lottie.LottieComposition
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieClipSpec
 import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieAnimatable
 import com.airbnb.lottie.compose.rememberLottieComposition
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlin.math.pow
+import java.time.LocalDate
 
 private val CardShape = RoundedCornerShape(24.dp)
 private val ChipShape = RoundedCornerShape(20.dp)
-/** Капсула «Усі ›» — великий радіус (візуально як на референсі). */
+/** РљР°РїСЃСѓР»Р° В«РЈСЃС– вЂєВ» вЂ” РІРµР»РёРєРёР№ СЂР°РґС–СѓСЃ (РІС–Р·СѓР°Р»СЊРЅРѕ СЏРє РЅР° СЂРµС„РµСЂРµРЅСЃС–). */
 private val OperationsAllChipShape = RoundedCornerShape(999.dp)
-/** Низька капсула як на референсі monobank — мало вертикального повітря. */
+/** РќРёР·СЊРєР° РєР°РїСЃСѓР»Р° СЏРє РЅР° СЂРµС„РµСЂРµРЅСЃС– monobank вЂ” РјР°Р»Рѕ РІРµСЂС‚РёРєР°Р»СЊРЅРѕРіРѕ РїРѕРІС–С‚СЂСЏ. */
 private val OperationsAllChipPaddingH = 16.dp
 private val OperationsAllChipPaddingV = 4.dp
 private val OperationsAllChipFontSize = 14.sp
 private val OperationsAllChipLineHeight = 14.sp
 private val ActionCircleSize = 56.dp
 
-/** Висота нижньої «пігулки» та Маркету — радіус = половина висоти (капсула / коло). */
+/** Р’РёСЃРѕС‚Р° РЅРёР¶РЅСЊРѕС— В«РїС–РіСѓР»РєРёВ» С‚Р° РњР°СЂРєРµС‚Сѓ вЂ” СЂР°РґС–СѓСЃ = РїРѕР»РѕРІРёРЅР° РІРёСЃРѕС‚Рё (РєР°РїСЃСѓР»Р° / РєРѕР»Рѕ). */
 private val BottomBarHeight = 72.dp
 private val BottomBarPillRadius = 36.dp
 private val BottomBarGap = 4.dp
 
-/** Lottie в меню; статична іконка «Маркет» трохи менша. */
+/** Lottie РІ РјРµРЅСЋ; СЃС‚Р°С‚РёС‡РЅР° С–РєРѕРЅРєР° В«РњР°СЂРєРµС‚В» С‚СЂРѕС…Рё РјРµРЅС€Р°. */
 private val BottomBarNavLottieIconSize = 40.dp
 private val BottomBarNavStaticIconSize = 28.dp
 
-/** Відступ підпису від нижнього краю комірки (малий — текст ближче до іконки). */
+/** Р’С–РґСЃС‚СѓРї РїС–РґРїРёСЃСѓ РІС–Рґ РЅРёР¶РЅСЊРѕРіРѕ РєСЂР°СЋ РєРѕРјС–СЂРєРё (РјР°Р»РёР№ вЂ” С‚РµРєСЃС‚ Р±Р»РёР¶С‡Рµ РґРѕ С–РєРѕРЅРєРё). */
 private val BottomBarNavLabelBottomPadding = 2.dp
 
-/** Підписи в нижній панелі: `roboto_bold` на всю ширину гліфа (див. [BottomBarNavLabelFontFamily]). */
+/** РџС–РґРїРёСЃРё РІ РЅРёР¶РЅС–Р№ РїР°РЅРµР»С–: `roboto_bold` РЅР° РІСЃСЋ С€РёСЂРёРЅСѓ РіР»С–С„Р° (РґРёРІ. [BottomBarNavLabelFontFamily]). */
 private val BottomBarNavLabelFontSize = 11.75.sp
 private val BottomBarNavLabelLineHeight = 14.25.sp
 private val BottomBarNavLabelLetterSpacing = (-0.1).sp
@@ -208,39 +223,39 @@ private val BottomBarNavLabelFontFamily = FontFamily(
 private val HomeBottomBarShadeHeight = 210.dp
 
 /**
- * Вертикальні відступи [HomeBottomBar] навколо пігулки (див. [HomeBottomBar] `padding(vertical = 8.dp)`).
- * Потрібні для нижнього [contentPadding] [LazyColumn], щоб «Корисне» не ховалось під панеллю.
+ * Р’РµСЂС‚РёРєР°Р»СЊРЅС– РІС–РґСЃС‚СѓРїРё [HomeBottomBar] РЅР°РІРєРѕР»Рѕ РїС–РіСѓР»РєРё (РґРёРІ. [HomeBottomBar] `padding(vertical = 8.dp)`).
+ * РџРѕС‚СЂС–Р±РЅС– РґР»СЏ РЅРёР¶РЅСЊРѕРіРѕ [contentPadding] [LazyColumn], С‰РѕР± В«РљРѕСЂРёСЃРЅРµВ» РЅРµ С…РѕРІР°Р»РѕСЃСЊ РїС–Рґ РїР°РЅРµР»Р»СЋ.
  */
 private val HomeBottomBarRowVerticalPadding = 16.dp
 
-/** Додатковий зазор між верхом плаваючої панелі й останнім блоком після повного скролу. */
+/** Р”РѕРґР°С‚РєРѕРІРёР№ Р·Р°Р·РѕСЂ РјС–Р¶ РІРµСЂС…РѕРј РїР»Р°РІР°СЋС‡РѕС— РїР°РЅРµР»С– Р№ РѕСЃС‚Р°РЅРЅС–Рј Р±Р»РѕРєРѕРј РїС–СЃР»СЏ РїРѕРІРЅРѕРіРѕ СЃРєСЂРѕР»Сѓ. */
 private val HomeCardsListBottomGapBeyondBar = 8.dp
 private val HomeCardsListBottomTailTrim = 48.dp
 
-/** Відступ під топ-баром перед блоком балансу (не між балансом і картою). */
+/** Р’С–РґСЃС‚СѓРї РїС–Рґ С‚РѕРї-Р±Р°СЂРѕРј РїРµСЂРµРґ Р±Р»РѕРєРѕРј Р±Р°Р»Р°РЅСЃСѓ (РЅРµ РјС–Р¶ Р±Р°Р»Р°РЅСЃРѕРј С– РєР°СЂС‚РѕСЋ). */
 private val HomeTopBarToBalancePaddingDp = 44.dp
 private const val HomeTopBarToBalancePaddingPx: Float = 92f
 
-/** Горизонтальний відступ [LazyColumn]. */
+/** Р“РѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅРёР№ РІС–РґСЃС‚СѓРї [LazyColumn]. */
 private val HomeCardsLazyHorizontalPadding = 14.dp
 
 /**
- * Горизонтальний inset [HorizontalPager] — тонкі смуги сусідніх карт біля центральної,
- * близько до основної пластини (не «широкий» carousel).
+ * Р“РѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅРёР№ inset [HorizontalPager] вЂ” С‚РѕРЅРєС– СЃРјСѓРіРё СЃСѓСЃС–РґРЅС–С… РєР°СЂС‚ Р±С–Р»СЏ С†РµРЅС‚СЂР°Р»СЊРЅРѕС—,
+ * Р±Р»РёР·СЊРєРѕ РґРѕ РѕСЃРЅРѕРІРЅРѕС— РїР»Р°СЃС‚РёРЅРё (РЅРµ В«С€РёСЂРѕРєРёР№В» carousel).
  */
 private val HomeCardsPagerHorizontalPeek = 8.dp
 
-/** Мінімальний зазор між сторінками в пейджері (основний рух — нативний scroll пейджера). */
+/** РњС–РЅС–РјР°Р»СЊРЅРёР№ Р·Р°Р·РѕСЂ РјС–Р¶ СЃС‚РѕСЂС–РЅРєР°РјРё РІ РїРµР№РґР¶РµСЂС– (РѕСЃРЅРѕРІРЅРёР№ СЂСѓС… вЂ” РЅР°С‚РёРІРЅРёР№ scroll РїРµР№РґР¶РµСЂР°). */
 private val HomeCardsPagerPageSpacing = 0.dp
-/** Додаткове зближення тільки пластикових карт між собою (без зближення широких блоків операцій). */
+/** Р”РѕРґР°С‚РєРѕРІРµ Р·Р±Р»РёР¶РµРЅРЅСЏ С‚С–Р»СЊРєРё РїР»Р°СЃС‚РёРєРѕРІРёС… РєР°СЂС‚ РјС–Р¶ СЃРѕР±РѕСЋ (Р±РµР· Р·Р±Р»РёР¶РµРЅРЅСЏ С€РёСЂРѕРєРёС… Р±Р»РѕРєС–РІ РѕРїРµСЂР°С†С–Р№). */
 private val HomeCardsPlateNeighborExtraPull = 52.dp
 
-/** Між нижнім краєм балансу (чипи) і верхом каруселі. */
+/** РњС–Р¶ РЅРёР¶РЅС–Рј РєСЂР°С”Рј Р±Р°Р»Р°РЅСЃСѓ (С‡РёРїРё) С– РІРµСЂС…РѕРј РєР°СЂСѓСЃРµР»С–. */
 private val HomeSectionGapBalanceToCard = 48.dp
 
-/** Зовнішній блок навколо пунктів «Особисті дані…» / «Налаштування…». */
+/** Р—РѕРІРЅС–С€РЅС–Р№ Р±Р»РѕРє РЅР°РІРєРѕР»Рѕ РїСѓРЅРєС‚С–РІ В«РћСЃРѕР±РёСЃС‚С– РґР°РЅС–вЂ¦В» / В«РќР°Р»Р°С€С‚СѓРІР°РЅРЅСЏвЂ¦В». */
 private val HomeProfileMenuOuterBlockColor = Color(0xFF303030)
-/** Фон рядків усередині цього блоку. */
+/** Р¤РѕРЅ СЂСЏРґРєС–РІ СѓСЃРµСЂРµРґРёРЅС– С†СЊРѕРіРѕ Р±Р»РѕРєСѓ. */
 private val HomeProfileMenuSettingsRowsColor = Color(0xFF323232)
 private val HomeProfileMenuCardColor = Color(0xFF323232)
 private val HomeProfileMenuIconCircleBg = Color(0xFF2C3E50)
@@ -256,71 +271,71 @@ private val HomeProfileDetailsGradientEnd = Color(0xFFBD5AAC)
 private val HomeProfileMenuSheetShape = RoundedCornerShape(18.dp)
 
 /**
- * Висота, яку займає блок каруселі в [LazyColumn] — мала, щоб «Усі картки» та нижній контент піднялись.
- * Має бути достатньою під вищу пластину [HomeBankCardFrame] + нахил.
+ * Р’РёСЃРѕС‚Р°, СЏРєСѓ Р·Р°Р№РјР°С” Р±Р»РѕРє РєР°СЂСѓСЃРµР»С– РІ [LazyColumn] вЂ” РјР°Р»Р°, С‰РѕР± В«РЈСЃС– РєР°СЂС‚РєРёВ» С‚Р° РЅРёР¶РЅС–Р№ РєРѕРЅС‚РµРЅС‚ РїС–РґРЅСЏР»РёСЃСЊ.
+ * РњР°С” Р±СѓС‚Рё РґРѕСЃС‚Р°С‚РЅСЊРѕСЋ РїС–Рґ РІРёС‰Сѓ РїР»Р°СЃС‚РёРЅСѓ [HomeBankCardFrame] + РЅР°С…РёР».
  */
 private val HomeCardCarouselLayoutReserveHeight = 230.dp
 
-/** Висота слота під [HomeCardPlaceholder] — під вищу/ширшу пластину в [HomeMonoTiltedCard]. */
+/** Р’РёСЃРѕС‚Р° СЃР»РѕС‚Р° РїС–Рґ [HomeCardPlaceholder] вЂ” РїС–Рґ РІРёС‰Сѓ/С€РёСЂС€Сѓ РїР»Р°СЃС‚РёРЅСѓ РІ [HomeMonoTiltedCard]. */
 private val HomeCardCarouselPagerVisualHeight = 240.dp
 private val HomeCardCarouselMistTopOffset = 138.dp
 private val HomeCardCarouselMistHeight = 150.dp
 
 /**
- * Вертикаль пластики на головному екрані (наклон «від користувача»):
- * - [HomeCardPlateOffsetY] + [HomeCardPlateExtraLiftPx] — базовий зсув у [HomeCardPlaceholder] (`plateOffsetY`);
- * - [HomeCardCarouselPlateNudgeY] — тонке доналаштування вгору/вниз без перерахунку px;
- * - у [HomeCardPlaceholder]: `rotX` (кут нахилу), `cardTransY` (translationY у [HomeMonoTiltedCard], більше — нижче на екрані).
+ * Р’РµСЂС‚РёРєР°Р»СЊ РїР»Р°СЃС‚РёРєРё РЅР° РіРѕР»РѕРІРЅРѕРјСѓ РµРєСЂР°РЅС– (РЅР°РєР»РѕРЅ В«РІС–Рґ РєРѕСЂРёСЃС‚СѓРІР°С‡Р°В»):
+ * - [HomeCardPlateOffsetY] + [HomeCardPlateExtraLiftPx] вЂ” Р±Р°Р·РѕРІРёР№ Р·СЃСѓРІ Сѓ [HomeCardPlaceholder] (`plateOffsetY`);
+ * - [HomeCardCarouselPlateNudgeY] вЂ” С‚РѕРЅРєРµ РґРѕРЅР°Р»Р°С€С‚СѓРІР°РЅРЅСЏ РІРіРѕСЂСѓ/РІРЅРёР· Р±РµР· РїРµСЂРµСЂР°С…СѓРЅРєСѓ px;
+ * - Сѓ [HomeCardPlaceholder]: `rotX` (РєСѓС‚ РЅР°С…РёР»Сѓ), `cardTransY` (translationY Сѓ [HomeMonoTiltedCard], Р±С–Р»СЊС€Рµ вЂ” РЅРёР¶С‡Рµ РЅР° РµРєСЂР°РЅС–).
  */
 private val HomeCardPlateOffsetY = (-40).dp
 
-/** Додатково підняти пластину (px → dp разом із [HomeCardPlateOffsetY]). */
+/** Р”РѕРґР°С‚РєРѕРІРѕ РїС–РґРЅСЏС‚Рё РїР»Р°СЃС‚РёРЅСѓ (px в†’ dp СЂР°Р·РѕРј С–Р· [HomeCardPlateOffsetY]). */
 private const val HomeCardPlateExtraLiftPx: Float = 56f
 
-/** Додатковий зсув пластини вгору на каруселі (негативний = вище). */
+/** Р”РѕРґР°С‚РєРѕРІРёР№ Р·СЃСѓРІ РїР»Р°СЃС‚РёРЅРё РІРіРѕСЂСѓ РЅР° РєР°СЂСѓСЃРµР»С– (РЅРµРіР°С‚РёРІРЅРёР№ = РІРёС‰Рµ). */
 private val HomeCardCarouselPlateNudgeY = (-45).dp
 
-/** Підняти весь блок балансу вгору (px → dp у [HomeBalanceBlock]). */
+/** РџС–РґРЅСЏС‚Рё РІРµСЃСЊ Р±Р»РѕРє Р±Р°Р»Р°РЅСЃСѓ РІРіРѕСЂСѓ (px в†’ dp Сѓ [HomeBalanceBlock]). */
 private const val HomeBalanceVerticalLiftPx: Float = 50f
 
 /**
- * Зсув чипа «Усі картки» по вертикалі відносно місця після блоку пластини.
- * **Негативний** — малює чип вище (ближче до картки). Реалізовано через [Modifier.offset], бо
- * `Spacer(height = негатив)` у [Column] зазвичай **обрізається до 0** під час measure — великі
- * від’ємні значення там «не працюють».
+ * Р—СЃСѓРІ С‡РёРїР° В«РЈСЃС– РєР°СЂС‚РєРёВ» РїРѕ РІРµСЂС‚РёРєР°Р»С– РІС–РґРЅРѕСЃРЅРѕ РјС–СЃС†СЏ РїС–СЃР»СЏ Р±Р»РѕРєСѓ РїР»Р°СЃС‚РёРЅРё.
+ * **РќРµРіР°С‚РёРІРЅРёР№** вЂ” РјР°Р»СЋС” С‡РёРї РІРёС‰Рµ (Р±Р»РёР¶С‡Рµ РґРѕ РєР°СЂС‚РєРё). Р РµР°Р»С–Р·РѕРІР°РЅРѕ С‡РµСЂРµР· [Modifier.offset], Р±Рѕ
+ * `Spacer(height = РЅРµРіР°С‚РёРІ)` Сѓ [Column] Р·Р°Р·РІРёС‡Р°Р№ **РѕР±СЂС–Р·Р°С”С‚СЊСЃСЏ РґРѕ 0** РїС–Рґ С‡Р°СЃ measure вЂ” РІРµР»РёРєС–
+ * РІС–РґвЂ™С”РјРЅС– Р·РЅР°С‡РµРЅРЅСЏ С‚Р°Рј В«РЅРµ РїСЂР°С†СЋСЋС‚СЊВ».
  *
- * Щоб підняти контент у **розкладці** (а не лише намалювати вище), зменшуйте [HomeCardCarouselLayoutReserveHeight]
- * або висоту слота [HomeCardCarouselPagerVisualHeight].
+ * Р©РѕР± РїС–РґРЅСЏС‚Рё РєРѕРЅС‚РµРЅС‚ Сѓ **СЂРѕР·РєР»Р°РґС†С–** (Р° РЅРµ Р»РёС€Рµ РЅР°РјР°Р»СЋРІР°С‚Рё РІРёС‰Рµ), Р·РјРµРЅС€СѓР№С‚Рµ [HomeCardCarouselLayoutReserveHeight]
+ * Р°Р±Рѕ РІРёСЃРѕС‚Сѓ СЃР»РѕС‚Р° [HomeCardCarouselPagerVisualHeight].
  */
 private val HomeSectionGapCarouselToAllCards = (-122).dp
 
 /**
- * Додатковий зсув блоку «Швидкі дії» + «Операції» вгору (до чипа «Усі картки»), той самий прийом, що й [Modifier.offset] для чипа.
- * Негативний — вище.
+ * Р”РѕРґР°С‚РєРѕРІРёР№ Р·СЃСѓРІ Р±Р»РѕРєСѓ В«РЁРІРёРґРєС– РґС–С—В» + В«РћРїРµСЂР°С†С–С—В» РІРіРѕСЂСѓ (РґРѕ С‡РёРїР° В«РЈСЃС– РєР°СЂС‚РєРёВ»), С‚РѕР№ СЃР°РјРёР№ РїСЂРёР№РѕРј, С‰Рѕ Р№ [Modifier.offset] РґР»СЏ С‡РёРїР°.
+ * РќРµРіР°С‚РёРІРЅРёР№ вЂ” РІРёС‰Рµ.
  */
 private val HomeSectionOffsetQuickActionsAndOperationsY = (-105).dp
 
-/** Між «Усі картки» і швидкими діями — ~40 px. */
+/** РњС–Р¶ В«РЈСЃС– РєР°СЂС‚РєРёВ» С– С€РІРёРґРєРёРјРё РґС–СЏРјРё вЂ” ~40 px. */
 private val HomeSectionGapAllCardsToQuick = 6.dp
-/** Між швидкими діями і блоком «Операції». */
+/** РњС–Р¶ С€РІРёРґРєРёРјРё РґС–СЏРјРё С– Р±Р»РѕРєРѕРј В«РћРїРµСЂР°С†С–С—В». */
 private val HomeSectionGapQuickToOperations = 8.dp
-/** Між блоком «Операції» (перший item) і «Ліміти та обмеження». */
+/** РњС–Р¶ Р±Р»РѕРєРѕРј В«РћРїРµСЂР°С†С–С—В» (РїРµСЂС€РёР№ item) С– В«Р›С–РјС–С‚Рё С‚Р° РѕР±РјРµР¶РµРЅРЅСЏВ». */
 private val HomeSectionGapOperationsToLimits = 14.dp
-/** Між «Ліміти та обмеження» і «Корисне». */
+/** РњС–Р¶ В«Р›С–РјС–С‚Рё С‚Р° РѕР±РјРµР¶РµРЅРЅСЏВ» С– В«РљРѕСЂРёСЃРЅРµВ». */
 private val HomeSectionGapLimitsToUseful = 88.dp
 
 /**
- * Підняти блоки **під** «Операції» (ліміти + корисне) до операцій і на **ту саму** величину скоротити
- * вертикальний хвіст сторінки: спочатку зменшуються [HomeSectionGapOperationsToLimits] та
- * [HomeSectionGapLimitsToUseful], решта — з нижнього [PaddingValues] [LazyColumn].
+ * РџС–РґРЅСЏС‚Рё Р±Р»РѕРєРё **РїС–Рґ** В«РћРїРµСЂР°С†С–С—В» (Р»С–РјС–С‚Рё + РєРѕСЂРёСЃРЅРµ) РґРѕ РѕРїРµСЂР°С†С–Р№ С– РЅР° **С‚Сѓ СЃР°РјСѓ** РІРµР»РёС‡РёРЅСѓ СЃРєРѕСЂРѕС‚РёС‚Рё
+ * РІРµСЂС‚РёРєР°Р»СЊРЅРёР№ С…РІС–СЃС‚ СЃС‚РѕСЂС–РЅРєРё: СЃРїРѕС‡Р°С‚РєСѓ Р·РјРµРЅС€СѓСЋС‚СЊСЃСЏ [HomeSectionGapOperationsToLimits] С‚Р°
+ * [HomeSectionGapLimitsToUseful], СЂРµС€С‚Р° вЂ” Р· РЅРёР¶РЅСЊРѕРіРѕ [PaddingValues] [LazyColumn].
  */
 private val HomeSectionCompactBelowOperationsDp = 102.dp
 
-/** У «Корисне»: однаковий горизонтальний inset для ряду курсів і сітки плиток. */
+/** РЈ В«РљРѕСЂРёСЃРЅРµВ»: РѕРґРЅР°РєРѕРІРёР№ РіРѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅРёР№ inset РґР»СЏ СЂСЏРґСѓ РєСѓСЂСЃС–РІ С– СЃС–С‚РєРё РїР»РёС‚РѕРє. */
 private val HomeUsefulInnerHorizontalPadding = 0.dp
-/** Зазор між двома рядами плиток 2×2. */
+/** Р—Р°Р·РѕСЂ РјС–Р¶ РґРІРѕРјР° СЂСЏРґР°РјРё РїР»РёС‚РѕРє 2Г—2. */
 private val HomeUsefulTilesRowSpacing = 16.dp
-/** Зазор між двома плитками в одному ряду. */
+/** Р—Р°Р·РѕСЂ РјС–Р¶ РґРІРѕРјР° РїР»РёС‚РєР°РјРё РІ РѕРґРЅРѕРјСѓ СЂСЏРґСѓ. */
 private val HomeUsefulTilesHorizontalSpacing = 18.dp
 private val HomeQuickActionIconSize = 22.dp
 private val HomeTopBarTopOffset = 6.dp
@@ -335,10 +350,10 @@ private val HomeOperationsTitleFontSize = 20.sp
 private val HomeOperationRowFontSize = 16.sp
 private val HomeOperationRowTextColor = Color(0xFFE4E2E3)
 
-/** Колір великого балансу [R.string.home_balance_main] — кешбек у топ-барі та сусідні іконки. */
+/** РљРѕР»С–СЂ РІРµР»РёРєРѕРіРѕ Р±Р°Р»Р°РЅСЃСѓ [R.string.home_balance_main] вЂ” РєРµС€Р±РµРє Сѓ С‚РѕРї-Р±Р°СЂС– С‚Р° СЃСѓСЃС–РґРЅС– С–РєРѕРЅРєРё. */
 private val HomeBalanceMainAmountColor = Color(0xFFFFFFFF)
 
-/** `assets/kreditfont/Kredit Front.otf` — текст на картці (не логотип VISA). */
+/** `assets/kreditfont/Kredit Front.otf` вЂ” С‚РµРєСЃС‚ РЅР° РєР°СЂС‚С†С– (РЅРµ Р»РѕРіРѕС‚РёРї VISA). */
 @Composable
 private fun rememberKreditFrontFontFamily(): FontFamily {
     val assets = LocalContext.current.assets
@@ -358,16 +373,16 @@ private const val OperationsLogosPath = "operations_logos"
 
 private const val CardVisaLogoAsset = "$OperationsLogosPath/visa_negate.png"
 private const val CardMonobankNegateAsset = "$OperationsLogosPath/monobank_negate (1).png"
-/** Іконка чипа «гаманець» біля [R.string.home_balance_wallet] (2 144 ₴). */
+/** Р†РєРѕРЅРєР° С‡РёРїР° В«РіР°РјР°РЅРµС†СЊВ» Р±С–Р»СЏ [R.string.home_balance_wallet] (2 144 в‚ґ). */
 private const val CardWalletNegateAsset = "$OperationsLogosPath/wallet_negate.png"
 private const val QuickActionBankCardNegateAsset = "$OperationsLogosPath/bank_card_negate.png"
 private const val HomeProfileMessageAsset = "$OperationsLogosPath/profile_message.png"
 private const val HomeProfilePersonalDataAsset = "$OperationsLogosPath/personal_data.png"
 private const val HomeProfileSettingsAsset = "$OperationsLogosPath/settings.png"
 private const val HomeProfileFopAsset = "$OperationsLogosPath/fop.png"
-/** Іконка чипа кредитного ліміту біля [R.string.home_balance_credit]. */
+/** Р†РєРѕРЅРєР° С‡РёРїР° РєСЂРµРґРёС‚РЅРѕРіРѕ Р»С–РјС–С‚Сѓ Р±С–Р»СЏ [R.string.home_balance_credit]. */
 private const val CardCreditSumAsset = "$OperationsLogosPath/credit_sum.png"
-/** Іконка чипа «Усі картки» під каруселлю. */
+/** Р†РєРѕРЅРєР° С‡РёРїР° В«РЈСЃС– РєР°СЂС‚РєРёВ» РїС–Рґ РєР°СЂСѓСЃРµР»Р»СЋ. */
 private const val HomeAllCardsChipAsset = "$OperationsLogosPath/all_cards.png"
 
 private const val HomeStatsAsset = "$OperationsLogosPath/stats.png"
@@ -381,8 +396,12 @@ private val HomeOperationDetailPatternIconSize = 40.dp
 private val HomeOperationDetailPatternStepX = 40.dp
 private val HomeOperationDetailPatternStepY = 40.dp
 private const val HomeOperationDetailPatternAlpha = 0.3f
-private const val HomeOperationDetailWalletAsset = "$OperationsLogosPath/Wallet2.png"
-private const val HomeOperationDetailLinkAsset = "$OperationsLogosPath/Link.png"
+private const val HomeOperationDetailPencilAsset = "$OperationsLogosPath/pencil.png"
+private const val HomeOperationDetailReferAsset = "$OperationsLogosPath/refer.png"
+private const val HomeOperationDetailTagsAsset = "$OperationsLogosPath/tags.png"
+private const val HomeOperationDetailWalletAsset = "$OperationsLogosPath/wallet_left.png"
+private const val HomeOperationDetailCopyLinkAsset = "$OperationsLogosPath/copy_link.png"
+private const val HomeOperationDetailLinkAsset = "$OperationsLogosPath/link_blue.png"
 private const val HomeOperationDetailShareAsset = "$OperationsLogosPath/share_negate.png"
 private const val HomeOperationDetailRepeatAsset = "$OperationsLogosPath/repeat.png"
 private const val HomeOperationDetailSplitAsset = "$OperationsLogosPath/split.png"
@@ -390,6 +409,7 @@ private const val HomeOperationDetailQuestionAsset = "$OperationsLogosPath/Quest
 private const val HomeOperationDetailRegularPaymentAsset = "$OperationsLogosPath/regular_payment.png"
 private const val HomeOperationDetailSaveCardAsset = "$OperationsLogosPath/save_card.png"
 private const val HomeOperationDetailShowPdfAsset = "$OperationsLogosPath/show_pdf.png"
+private const val HomeOperationReceiptLoaderAsset = "animations/loader.json"
 private const val HomeLimitsAsset = "$OperationsLogosPath/limits_.png"
 private const val HomeForeignAsset = "$OperationsLogosPath/foreign.png"
 private const val HomeUsdAsset = "$OperationsLogosPath/usd.png"
@@ -401,7 +421,7 @@ private const val HomeCatIconAsset = "$OperationsLogosPath/cat_icon.png"
 private const val HomeGiftBoxNegateAsset = "gift-box_negate.png"
 private const val HomeGiftBoxNegateInOperationsLogos = "$OperationsLogosPath/gift-box_negate.png"
 
-/** Шляхи до іконки кешбеку біля суми [R.string.home_bonus_amount] (різні імена файлів у збірках). */
+/** РЁР»СЏС…Рё РґРѕ С–РєРѕРЅРєРё РєРµС€Р±РµРєСѓ Р±С–Р»СЏ СЃСѓРјРё [R.string.home_bonus_amount] (СЂС–Р·РЅС– С–РјРµРЅР° С„Р°Р№Р»С–РІ Сѓ Р·Р±С–СЂРєР°С…). */
 private val HomeGiftBoxNegateAssetPaths = listOf(
     HomeGiftBoxNegateInOperationsLogos,
     HomeGiftBoxNegateAsset,
@@ -482,13 +502,13 @@ private fun rememberFirstSuccessfulAssetBitmap(paths: List<String>): ImageBitmap
     }
 }
 
-/** Lottie «Картки» / «Кредити»: сегмент по тапу або після повернення — кадри 0…9 (10 кадрів). */
+/** Lottie В«РљР°СЂС‚РєРёВ» / В«РљСЂРµРґРёС‚РёВ»: СЃРµРіРјРµРЅС‚ РїРѕ С‚Р°РїСѓ Р°Р±Рѕ РїС–СЃР»СЏ РїРѕРІРµСЂРЅРµРЅРЅСЏ вЂ” РєР°РґСЂРё 0вЂ¦9 (10 РєР°РґСЂС–РІ). */
 private const val NavLottieTapMaxFrameInclusive = 15
 
-/** Lottie «Ще»: при тапі — кадри 0…14 (15 кадрів). */
+/** Lottie В«Р©РµВ»: РїСЂРё С‚Р°РїС– вЂ” РєР°РґСЂРё 0вЂ¦14 (15 РєР°РґСЂС–РІ). */
 private const val MoreNavTapMaxFrameInclusive = 16
 
-/** Lottie «Накопичення»: при тапі — кадри 0…14 (15 кадрів), після відтворення залишаємось на останньому. */
+/** Lottie В«РќР°РєРѕРїРёС‡РµРЅРЅСЏВ»: РїСЂРё С‚Р°РїС– вЂ” РєР°РґСЂРё 0вЂ¦14 (15 РєР°РґСЂС–РІ), РїС–СЃР»СЏ РІС–РґС‚РІРѕСЂРµРЅРЅСЏ Р·Р°Р»РёС€Р°С”РјРѕСЃСЊ РЅР° РѕСЃС‚Р°РЅРЅСЊРѕРјСѓ. */
 private const val SavingsNavTapMaxFrameInclusive = 16
 
 private const val CardsNavLottieAsset = "animations/cards_icon.json"
@@ -497,7 +517,7 @@ private const val MoreNavLottieAsset = "animations/more_icon.json"
 private const val SavingsNavLottieAsset = "animations/deposits_dnm_16_quick.json"
 private const val MarketNavLottieAsset = "animations/market20_icon.json"
 
-/** Активна вкладка: м'який tint Lottie до #fd8688; неактивна — приглушення. */
+/** РђРєС‚РёРІРЅР° РІРєР»Р°РґРєР°: Рј'СЏРєРёР№ tint Lottie РґРѕ #fd8688; РЅРµР°РєС‚РёРІРЅР° вЂ” РїСЂРёРіР»СѓС€РµРЅРЅСЏ. */
 private fun Modifier.lottieNavInactiveGrayTint(selected: Boolean): Modifier =
     graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
         .drawWithContent {
@@ -509,8 +529,8 @@ private fun Modifier.lottieNavInactiveGrayTint(selected: Boolean): Modifier =
         }
 
 /**
- * Вертикальні палітри фону — по одній на кожну сторінку каруселі карт (узгоджено з [HomeCardsCarouselPageCount]).
- * Порядок: чорна → біла (пурпур) → чорно-зелена (темна бірюза) → чорно-червона (малина).
+ * Р’РµСЂС‚РёРєР°Р»СЊРЅС– РїР°Р»С–С‚СЂРё С„РѕРЅСѓ вЂ” РїРѕ РѕРґРЅС–Р№ РЅР° РєРѕР¶РЅСѓ СЃС‚РѕСЂС–РЅРєСѓ РєР°СЂСѓСЃРµР»С– РєР°СЂС‚ (СѓР·РіРѕРґР¶РµРЅРѕ Р· [HomeCardsCarouselPageCount]).
+ * РџРѕСЂСЏРґРѕРє: С‡РѕСЂРЅР° в†’ Р±С–Р»Р° (РїСѓСЂРїСѓСЂ) в†’ С‡РѕСЂРЅРѕ-Р·РµР»РµРЅР° (С‚РµРјРЅР° Р±С–СЂСЋР·Р°) в†’ С‡РѕСЂРЅРѕ-С‡РµСЂРІРѕРЅР° (РјР°Р»РёРЅР°).
  */
 private val HomeBgMainPalettes: List<Array<Pair<Float, Color>>> = listOf(
     arrayOf(
@@ -569,7 +589,7 @@ private val HomeBgRadialMids: List<Color> = listOf(
     Color(0x28CC3D72)
 )
 
-/** Затемнення для режиму «лише вікно» (немає виміряної висоти контенту). */
+/** Р—Р°С‚РµРјРЅРµРЅРЅСЏ РґР»СЏ СЂРµР¶РёРјСѓ В«Р»РёС€Рµ РІС–РєРЅРѕВ» (РЅРµРјР°С” РІРёРјС–СЂСЏРЅРѕС— РІРёСЃРѕС‚Рё РєРѕРЅС‚РµРЅС‚Сѓ). */
 private val HomeBgOverlayStops: Array<Pair<Float, Color>> = arrayOf(
     0.00f to Color.Transparent,
     0.83f to Color.Transparent,
@@ -579,8 +599,8 @@ private val HomeBgOverlayStops: Array<Pair<Float, Color>> = arrayOf(
 )
 
 /**
- * Вертикальний градієнт у координатах усього скрол-контенту (як у HEAD: ті самі стопи 0/35/45/55/100%),
- * окрема палітра на кожну картку — інтерполяція по [cardScrollPosition] як у [HomeBgMainPalettes].
+ * Р’РµСЂС‚РёРєР°Р»СЊРЅРёР№ РіСЂР°РґС–С”РЅС‚ Сѓ РєРѕРѕСЂРґРёРЅР°С‚Р°С… СѓСЃСЊРѕРіРѕ СЃРєСЂРѕР»-РєРѕРЅС‚РµРЅС‚Сѓ (СЏРє Сѓ HEAD: С‚С– СЃР°РјС– СЃС‚РѕРїРё 0/35/45/55/100%),
+ * РѕРєСЂРµРјР° РїР°Р»С–С‚СЂР° РЅР° РєРѕР¶РЅСѓ РєР°СЂС‚РєСѓ вЂ” С–РЅС‚РµСЂРїРѕР»СЏС†С–СЏ РїРѕ [cardScrollPosition] СЏРє Сѓ [HomeBgMainPalettes].
  */
 private val HomeBgContentScrollPalettes: List<Array<Pair<Float, Color>>> = listOf(
     arrayOf(
@@ -653,16 +673,16 @@ private fun lerpColorStops(
 @Composable
 fun StaticHomeBackground(
     modifier: Modifier = Modifier,
-    /** Безперервна позиція каруселі: `currentPage + currentPageOffsetFraction` (0…paletteCount−1). */
+    /** Р‘РµР·РїРµСЂРµСЂРІРЅР° РїРѕР·РёС†С–СЏ РєР°СЂСѓСЃРµР»С–: `currentPage + currentPageOffsetFraction` (0вЂ¦paletteCountв€’1). */
     cardScrollPosition: Float = 0f,
-    /** Скільки палітр використовувати (1 — лише перша, для інших вкладок). */
+    /** РЎРєС–Р»СЊРєРё РїР°Р»С–С‚СЂ РІРёРєРѕСЂРёСЃС‚РѕРІСѓРІР°С‚Рё (1 вЂ” Р»РёС€Рµ РїРµСЂС€Р°, РґР»СЏ С–РЅС€РёС… РІРєР»Р°РґРѕРє). */
     cardBackgroundPaletteCount: Int = 1,
     /**
-     * Висота всього скрол-контенту вкладки «Картки» (від верху до низу «Корисне»), px.
-     * Якщо ≤ 1 — градієнт у режимі висоти вікна.
+     * Р’РёСЃРѕС‚Р° РІСЃСЊРѕРіРѕ СЃРєСЂРѕР»-РєРѕРЅС‚РµРЅС‚Сѓ РІРєР»Р°РґРєРё В«РљР°СЂС‚РєРёВ» (РІС–Рґ РІРµСЂС…Сѓ РґРѕ РЅРёР·Сѓ В«РљРѕСЂРёСЃРЅРµВ»), px.
+     * РЇРєС‰Рѕ в‰¤ 1 вЂ” РіСЂР°РґС–С”РЅС‚ Сѓ СЂРµР¶РёРјС– РІРёСЃРѕС‚Рё РІС–РєРЅР°.
      */
     contentHeightPx: Float = 0f,
-    /** Зсув скролу першого item [LazyColumn] (px), щоб зріз градієнта збігався з контентом. */
+    /** Р—СЃСѓРІ СЃРєСЂРѕР»Сѓ РїРµСЂС€РѕРіРѕ item [LazyColumn] (px), С‰РѕР± Р·СЂС–Р· РіСЂР°РґС–С”РЅС‚Р° Р·Р±С–РіР°РІСЃСЏ Р· РєРѕРЅС‚РµРЅС‚РѕРј. */
     contentScrollOffsetPx: Float = 0f
 ) {
     val paletteN = cardBackgroundPaletteCount.coerceIn(1, HomeBgMainPalettes.size)
@@ -750,7 +770,7 @@ fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
     var selectedBottomTab by remember { mutableStateOf(HomeBottomNavTab.Cards) }
     var savingsJarFlow by remember { mutableStateOf<SavingsJarFlow>(SavingsJarFlow.None) }
     val bottomBarLiftDp = 0.dp
-    /** Додатковий зсиг униз на 10 px екрана (щодо попереднього положення). */
+    /** Р”РѕРґР°С‚РєРѕРІРёР№ Р·СЃРёРі СѓРЅРёР· РЅР° 10 px РµРєСЂР°РЅР° (С‰РѕРґРѕ РїРѕРїРµСЂРµРґРЅСЊРѕРіРѕ РїРѕР»РѕР¶РµРЅРЅСЏ). */
     val bottomBarDownFromPx10 = (10f / LocalDensity.current.density).dp
 
     LaunchedEffect(selectedBottomTab) {
@@ -845,12 +865,12 @@ fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
     }
 }
 
-/** Кількість карт у каруселі (= ach/r1…r5); фон інтерполюється між сусідніми палітрами під час свайпу. */
+/** РљС–Р»СЊРєС–СЃС‚СЊ РєР°СЂС‚ Сѓ РєР°СЂСѓСЃРµР»С– (= ach/r1вЂ¦r5); С„РѕРЅ С–РЅС‚РµСЂРїРѕР»СЋС”С‚СЊСЃСЏ РјС–Р¶ СЃСѓСЃС–РґРЅС–РјРё РїР°Р»С–С‚СЂР°РјРё РїС–Рґ С‡Р°СЃ СЃРІР°Р№РїСѓ. */
 internal const val HomeCardsCarouselPageCount = 4
 
 /**
- * Нормалізований зсув сторінки: 0 — сторінка в центрі, +1 — на екрані правий сусід, −1 — лівий.
- * Єдине джерело правди для [HorizontalPager] + [graphicsLayer] (баланс, картка, чип, дії, операції).
+ * РќРѕСЂРјР°Р»С–Р·РѕРІР°РЅРёР№ Р·СЃСѓРІ СЃС‚РѕСЂС–РЅРєРё: 0 вЂ” СЃС‚РѕСЂС–РЅРєР° РІ С†РµРЅС‚СЂС–, +1 вЂ” РЅР° РµРєСЂР°РЅС– РїСЂР°РІРёР№ СЃСѓСЃС–Рґ, в€’1 вЂ” Р»С–РІРёР№.
+ * Р„РґРёРЅРµ РґР¶РµСЂРµР»Рѕ РїСЂР°РІРґРё РґР»СЏ [HorizontalPager] + [graphicsLayer] (Р±Р°Р»Р°РЅСЃ, РєР°СЂС‚РєР°, С‡РёРї, РґС–С—, РѕРїРµСЂР°С†С–С—).
  */
 @OptIn(ExperimentalFoundationApi::class)
 private fun pagerPageOffsetForMotion(pagerState: PagerState, page: Int): Float =
@@ -870,21 +890,21 @@ private fun firstToSecondIncomingHoldFactor(pagerState: PagerState, page: Int): 
     val progress = abs(dragFromAnchor).coerceIn(0f, 1f)
     return if (progress <= 0.5f) {
         val tHalf = (progress / 0.5f).coerceIn(0f, 1f)
-        // На першій половині свайпу вхідна (друга) сторінка майже не виїжджає:
-        // на 50% шляху лишається ~20% її додаткового руху.
+        // РќР° РїРµСЂС€С–Р№ РїРѕР»РѕРІРёРЅС– СЃРІР°Р№РїСѓ РІС…С–РґРЅР° (РґСЂСѓРіР°) СЃС‚РѕСЂС–РЅРєР° РјР°Р№Р¶Рµ РЅРµ РІРёС—Р¶РґР¶Р°С”:
+        // РЅР° 50% С€Р»СЏС…Сѓ Р»РёС€Р°С”С‚СЊСЃСЏ ~20% С—С— РґРѕРґР°С‚РєРѕРІРѕРіРѕ СЂСѓС…Сѓ.
         0.02f + 0.08f * smoothStep(tHalf)
     } else {
         val tSecondHalf = ((progress - 0.5f) / 0.5f).coerceIn(0f, 1f)
-        // Після середини наздоганяє плавно, але помітно активніше.
+        // РџС–СЃР»СЏ СЃРµСЂРµРґРёРЅРё РЅР°Р·РґРѕРіР°РЅСЏС” РїР»Р°РІРЅРѕ, Р°Р»Рµ РїРѕРјС–С‚РЅРѕ Р°РєС‚РёРІРЅС–С€Рµ.
         val catchUp = smoothStep(tSecondHalf.pow(0.75f))
         0.20f + 0.80f * catchUp
     }
 }
 
 /**
- * Легка пластика для сторінки картки в пейджері:
- * у центрі (offset=0) — без трансформації, на сусідніх позиціях (±1) — м'яке стискання й нахил.
- * Snap/fling керуються [PagerDefaults.flingBehavior] + spring; цей шар лише візуальний.
+ * Р›РµРіРєР° РїР»Р°СЃС‚РёРєР° РґР»СЏ СЃС‚РѕСЂС–РЅРєРё РєР°СЂС‚РєРё РІ РїРµР№РґР¶РµСЂС–:
+ * Сѓ С†РµРЅС‚СЂС– (offset=0) вЂ” Р±РµР· С‚СЂР°РЅСЃС„РѕСЂРјР°С†С–С—, РЅР° СЃСѓСЃС–РґРЅС–С… РїРѕР·РёС†С–СЏС… (В±1) вЂ” Рј'СЏРєРµ СЃС‚РёСЃРєР°РЅРЅСЏ Р№ РЅР°С…РёР».
+ * Snap/fling РєРµСЂСѓСЋС‚СЊСЃСЏ [PagerDefaults.flingBehavior] + spring; С†РµР№ С€Р°СЂ Р»РёС€Рµ РІС–Р·СѓР°Р»СЊРЅРёР№.
  */
 @OptIn(ExperimentalFoundationApi::class)
 private fun Modifier.homeCardsUnifiedPageMotion(
@@ -915,7 +935,7 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     val s = lerp(1f, 0.965f, compression).coerceIn(0.95f, 1f)
     scaleX = s
     scaleY = 1f
-    // Двофазний профіль: до 50% сторінки елементи розходяться, після 50% — плавно сходяться.
+    // Р”РІРѕС„Р°Р·РЅРёР№ РїСЂРѕС„С–Р»СЊ: РґРѕ 50% СЃС‚РѕСЂС–РЅРєРё РµР»РµРјРµРЅС‚Рё СЂРѕР·С…РѕРґСЏС‚СЊСЃСЏ, РїС–СЃР»СЏ 50% вЂ” РїР»Р°РІРЅРѕ СЃС…РѕРґСЏС‚СЊСЃСЏ.
     val smoothStep: (Float) -> Float = { t ->
         val x = t.coerceIn(0f, 1f)
         x * x * (3f - 2f * x)
@@ -925,9 +945,9 @@ private fun Modifier.homeCardsUnifiedPageMotion(
     } else {
         smoothStep((1f - progress) / 0.5f)
     }
-    // Невеликий "хвіст" в кінці жесту: щоб зближення завершувалось без різкого стопу біля snap.
+    // РќРµРІРµР»РёРєРёР№ "С…РІС–СЃС‚" РІ РєС–РЅС†С– Р¶РµСЃС‚Сѓ: С‰РѕР± Р·Р±Р»РёР¶РµРЅРЅСЏ Р·Р°РІРµСЂС€СѓРІР°Р»РѕСЃСЊ Р±РµР· СЂС–Р·РєРѕРіРѕ СЃС‚РѕРїСѓ Р±С–Р»СЏ snap.
     val settleTail = (1f - smoothStep(progress)).pow(0.75f)
-    // Довше утримує вхідну сторінку саме на старті руху.
+    // Р”РѕРІС€Рµ СѓС‚СЂРёРјСѓС” РІС…С–РґРЅСѓ СЃС‚РѕСЂС–РЅРєСѓ СЃР°РјРµ РЅР° СЃС‚Р°СЂС‚С– СЂСѓС…Сѓ.
     val earlyHold = 1f - smoothStep((progress / 0.42f).coerceIn(0f, 1f))
     val firstToSecondHold = firstToSecondIncomingHoldFactor(pagerState, page)
     val outgoingStretchPx =
@@ -987,7 +1007,7 @@ internal fun HomeCardsTabDashboard(
             stiffness = Spring.StiffnessLow
         )
     }
-    // PagerDefaults.flingBehavior — @Composable; не викликати всередині remember { }.
+    // PagerDefaults.flingBehavior вЂ” @Composable; РЅРµ РІРёРєР»РёРєР°С‚Рё РІСЃРµСЂРµРґРёРЅС– remember { }.
     val pagerFling = PagerDefaults.flingBehavior(
         state = pagerState,
         snapAnimationSpec = snapSpring
@@ -1130,7 +1150,7 @@ internal fun HomeCardsTabDashboard(
 }
 
 /**
- * Програмний перехід між сторінками карток з тією ж spring-спекою, що й [PagerDefaults.flingBehavior].
+ * РџСЂРѕРіСЂР°РјРЅРёР№ РїРµСЂРµС…С–Рґ РјС–Р¶ СЃС‚РѕСЂС–РЅРєР°РјРё РєР°СЂС‚РѕРє Р· С‚С–С”СЋ Р¶ spring-СЃРїРµРєРѕСЋ, С‰Рѕ Р№ [PagerDefaults.flingBehavior].
  */
 @OptIn(ExperimentalFoundationApi::class)
 internal suspend fun PagerState.animateHomeCardPageSpring(targetPage: Int) {
@@ -1706,12 +1726,12 @@ private fun HomeBalanceAddChip(modifier: Modifier = Modifier) {
             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
             .drawBehind {
                 val c = Offset(size.width * 0.5f, size.height * 0.5f)
-                /* Масштаб кіл і плюса: −10% від попереднього (0.9 → 0.81). */
+                /* РњР°СЃС€С‚Р°Р± РєС–Р» С– РїР»СЋСЃР°: в€’10% РІС–Рґ РїРѕРїРµСЂРµРґРЅСЊРѕРіРѕ (0.9 в†’ 0.81). */
                 val circleScale = 0.81f
                 val rOuter = size.minDimension * 0.5f * circleScale
-                /* Внутрішній диск: пропорція до rOuter мінус 3 px радіуса за макетом. */
+                /* Р’РЅСѓС‚СЂС–С€РЅС–Р№ РґРёСЃРє: РїСЂРѕРїРѕСЂС†С–СЏ РґРѕ rOuter РјС–РЅСѓСЃ 3 px СЂР°РґС–СѓСЃР° Р·Р° РјР°РєРµС‚РѕРј. */
                 val rInner = (rOuter * (22f / 40f) - 3f).coerceAtLeast(1f)
-                /* Зовнішнє кільце: ~90% прозорість (альфа 0.1); внутрішній диск — #ffffff. */
+                /* Р—РѕРІРЅС–С€РЅС” РєС–Р»СЊС†Рµ: ~90% РїСЂРѕР·РѕСЂС–СЃС‚СЊ (Р°Р»СЊС„Р° 0.1); РІРЅСѓС‚СЂС–С€РЅС–Р№ РґРёСЃРє вЂ” #ffffff. */
                 val outerAlpha = 0.1f
                 drawCircle(
                     color = Color.White.copy(alpha = outerAlpha),
@@ -1723,7 +1743,7 @@ private fun HomeBalanceAddChip(modifier: Modifier = Modifier) {
                     radius = rInner,
                     center = c
                 )
-                /* Плюс у тому ж масштабі, що й кола. */
+                /* РџР»СЋСЃ Сѓ С‚РѕРјСѓ Р¶ РјР°СЃС€С‚Р°Р±С–, С‰Рѕ Р№ РєРѕР»Р°. */
                 val armHalf = size.minDimension * (5f / 40f) * circleScale
                 val stroke = size.minDimension * (3.2f / 40f) * circleScale
                 val cr = CornerRadius(stroke * 0.5f, stroke * 0.5f)
@@ -1973,7 +1993,7 @@ private fun maskCardNumberForDisplay(rawNumber: String): String {
 }
 
 /**
- * Екран картки після натискання на пластину: картка зверху (розгортання + обертання), список-заглушка.
+ * Р•РєСЂР°РЅ РєР°СЂС‚РєРё РїС–СЃР»СЏ РЅР°С‚РёСЃРєР°РЅРЅСЏ РЅР° РїР»Р°СЃС‚РёРЅСѓ: РєР°СЂС‚РєР° Р·РІРµСЂС…Сѓ (СЂРѕР·РіРѕСЂС‚Р°РЅРЅСЏ + РѕР±РµСЂС‚Р°РЅРЅСЏ), СЃРїРёСЃРѕРє-Р·Р°РіР»СѓС€РєР°.
  */
 @Composable
 internal fun HomeCardDetailScreen(onClose: () -> Unit) {
@@ -2196,6 +2216,8 @@ private data class HomeOperationUi(
     val amount: String,
     val dateLabel: String,
     val commissionAmount: String?,
+    val receiptNumber: String,
+    val receiptPdfUri: String?,
     val logoAssetName: String?,
     val logoCircleBackground: Color = AvatarPlaceholder,
     val fallbackIcon: ImageVector? = null,
@@ -2220,23 +2242,29 @@ private fun HomeOperationsCard(
         HomeOperationUi(
             title = stringResource(R.string.home_op_steam),
             amount = stringResource(R.string.home_op_steam_amount),
-            dateLabel = "Сьогодні",
+            dateLabel = "РЎСЊРѕРіРѕРґРЅС–",
             commissionAmount = null,
+            receiptNumber = "CHEA-EKE4-3M3A-A37P",
+            receiptPdfUri = null,
             logoAssetName = HomeOperationTransferAssetName
         ),
         HomeOperationUi(
             title = stringResource(R.string.home_op_card),
             amount = stringResource(R.string.home_op_card_amount),
-            dateLabel = "Вчора",
+            dateLabel = "Р’С‡РѕСЂР°",
             commissionAmount = null,
+            receiptNumber = "CHEA-EKE4-3M3A-A37P",
+            receiptPdfUri = null,
             logoAssetName = HomeOperationTransferAssetName,
             fallbackIcon = Icons.Filled.CreditCard
         ),
         HomeOperationUi(
             title = stringResource(R.string.home_op_mcd),
             amount = stringResource(R.string.home_op_mcd_amount),
-            dateLabel = "14 квітня 2026",
+            dateLabel = "14 РєРІС–С‚РЅСЏ 2026",
             commissionAmount = null,
+            receiptNumber = "CHEA-EKE4-3M3A-A37P",
+            receiptPdfUri = null,
             logoAssetName = HomeOperationTransferAssetName,
             logoCircleBackground = Color(0xFFC8102E),
             fallbackIcon = Icons.Filled.Restaurant,
@@ -2251,8 +2279,10 @@ private fun HomeOperationsCard(
             HomeOperationUi(
                 title = op.title.ifBlank { stringResource(R.string.admin_card_operation_default_title) },
                 amount = op.amount.ifBlank { stringResource(R.string.admin_card_operation_default_amount) },
-                dateLabel = op.dateLabel.ifBlank { "Без дати" },
+                dateLabel = op.dateLabel.ifBlank { "Р‘РµР· РґР°С‚Рё" },
                 commissionAmount = op.commissionAmount.takeIf { op.hasCommission && it.isNotBlank() },
+                receiptNumber = op.receiptNumber.ifBlank { "CHEA-EKE4-3M3A-A37P" },
+                receiptPdfUri = op.receiptPdfUri,
                 logoAssetName = HomeOperationTransferAssetName,
                 fallbackIcon = Icons.Filled.CreditCard
             )
@@ -2299,7 +2329,7 @@ private fun HomeOperationsCard(
                         )
                 ) {
                     Text(
-                        text = stringResource(R.string.home_operations_all) + " ›",
+                        text = stringResource(R.string.home_operations_all) + " \u203A",
                         color = HomeOperationsAllChipText,
                         fontSize = OperationsAllChipFontSize,
                         lineHeight = OperationsAllChipLineHeight,
@@ -2437,6 +2467,11 @@ private fun HomeAllOperationsScreen(
             decorFitsSystemWindows = false
         )
     ) {
+        SystemBarsColorEffect(
+            statusBarColor = Color(0xFF5D5ED6),
+            navigationBarColor = Color(0xFF252525),
+            decorBackgroundColor = Color(0xFF09090A)
+        )
         val dialogView = LocalView.current
         DisposableEffect(dialogView) {
             val window = (dialogView.parent as? DialogWindowProvider)?.window
@@ -2497,7 +2532,7 @@ private fun HomeAllOperationsScreen(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Text(
-                        text = "200.49 ₴",
+                        text = "200.49 \u20B4",
                         color = Color.White,
                         fontSize = 34.sp,
                         fontWeight = FontWeight.Light,
@@ -2539,7 +2574,11 @@ private fun HomeOperationDetailScreen(
     onDismiss: () -> Unit
 ) {
     val transferBitmap = rememberCroppedAssetImageBitmap("$OperationsLogosPath/$HomeOperationTransferAssetName")
+    val pencilBitmap = rememberAssetImageBitmap(HomeOperationDetailPencilAsset)
+    val referBitmap = rememberAssetImageBitmap(HomeOperationDetailReferAsset)
+    val tagsBitmap = rememberAssetImageBitmap(HomeOperationDetailTagsAsset)
     val walletBitmap = rememberCroppedAssetImageBitmap(HomeOperationDetailWalletAsset)
+    val copyLinkBitmap = rememberAssetImageBitmap(HomeOperationDetailCopyLinkAsset)
     val linkBitmap = rememberCroppedAssetImageBitmap(HomeOperationDetailLinkAsset)
     val shareBitmap = rememberAssetImageBitmap(HomeOperationDetailShareAsset)
     val splitBitmap = rememberAssetImageBitmap(HomeOperationDetailSplitAsset)
@@ -2548,7 +2587,9 @@ private fun HomeOperationDetailScreen(
     val regularPaymentBitmap = rememberAssetImageBitmap(HomeOperationDetailRegularPaymentAsset)
     val saveCardBitmap = rememberAssetImageBitmap(HomeOperationDetailSaveCardAsset)
     val showPdfBitmap = rememberAssetImageBitmap(HomeOperationDetailShowPdfAsset)
-    val commission = operation.commissionAmount ?: "4.00 ₴"
+    val commission = operation.commissionAmount?.takeIf { it.isNotBlank() }
+    val summaryPanelHeight = if (commission != null) 232.dp else 220.dp
+    var receiptOpen by remember(operation) { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -2557,6 +2598,11 @@ private fun HomeOperationDetailScreen(
             decorFitsSystemWindows = false
         )
     ) {
+        SystemBarsColorEffect(
+            statusBarColor = Color(0xFF5D5ED6),
+            navigationBarColor = Color(0xFF262626),
+            decorBackgroundColor = Color(0xFF262626)
+        )
         val dialogView = LocalView.current
         DisposableEffect(dialogView) {
             val window = (dialogView.parent as? DialogWindowProvider)?.window
@@ -2607,11 +2653,8 @@ private fun HomeOperationDetailScreen(
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .fillMaxWidth()
-                                .height(270.dp)
-                                .background(
-                                    color = Color(0xFF262626),
-                                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-                                )
+                                .height(summaryPanelHeight)
+                                .background(Color(0xFF262626))
                         )
                         Column(
                             modifier = Modifier
@@ -2628,15 +2671,15 @@ private fun HomeOperationDetailScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            HomeOperationDetailTypePill()
-                            Spacer(modifier = Modifier.height(14.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
+                            HomeOperationDetailTypePill(pencilBitmap)
+                            Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = operation.dateLabel.ifBlank { "10 квітня 2026, 14:27" },
+                                text = operation.dateLabel.ifBlank { "10 \u043A\u0432\u0456\u0442\u043D\u044F 2026, 14:27" },
                                 color = Color(0xFF8D8D91),
                                 fontSize = 16.sp
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = operation.amount,
                                 color = Color(0xFFE9E9E9),
@@ -2644,22 +2687,26 @@ private fun HomeOperationDetailScreen(
                                 lineHeight = 50.sp,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Комісія $commission",
-                                color = Color(0xFF8B8B8F),
-                                fontSize = 15.sp
-                            )
-                            Spacer(modifier = Modifier.height(28.dp))
-                            HomeOperationDetailInviteCard()
+                            if (commission != null) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "\u041A\u043E\u043C\u0456\u0441\u0456\u044F $commission",
+                                    color = Color(0xFF8B8B8F),
+                                    fontSize = 15.sp
+                                )
+                                Spacer(modifier = Modifier.height(20.dp))
+                            } else {
+                                Spacer(modifier = Modifier.height(28.dp))
+                            }
+                            HomeOperationDetailInviteCard(referBitmap)
                             Spacer(modifier = Modifier.height(16.dp))
-                            HomeOperationDetailPlaceholderRow()
+                            HomeOperationDetailPlaceholderRow(tagsBitmap)
                             Spacer(modifier = Modifier.height(16.dp))
                             HomeOperationDetailBalanceCard(walletBitmap)
                             Spacer(modifier = Modifier.height(18.dp))
                             HomeOperationDetailSpentChart()
                             Spacer(modifier = Modifier.height(16.dp))
-                            HomeOperationDetailReceiptCard(linkBitmap, shareBitmap)
+                            HomeOperationDetailReceiptCard(linkBitmap, copyLinkBitmap, shareBitmap)
                         }
                     }
                     }
@@ -2670,7 +2717,8 @@ private fun HomeOperationDetailScreen(
                     saveCardBitmap = saveCardBitmap,
                     showPdfBitmap = showPdfBitmap,
                     regularPaymentBitmap = regularPaymentBitmap,
-                    questionBitmap = questionBitmap
+                    questionBitmap = questionBitmap,
+                    onPdfReceiptClick = { receiptOpen = true }
                 )
             }
             Box(
@@ -2695,6 +2743,15 @@ private fun HomeOperationDetailScreen(
                     )
                 }
             }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 102.dp)
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    .background(Color(0xFF262626))
+            )
             Surface(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -2723,6 +2780,12 @@ private fun HomeOperationDetailScreen(
             }
         }
     }
+    if (receiptOpen) {
+        HomeOperationPdfReceiptScreen(
+            operation = operation,
+            onDismiss = { receiptOpen = false }
+        )
+    }
 }
 
 @Composable
@@ -2740,7 +2803,7 @@ private fun HomeOperationDetailHeaderPattern(modifier: Modifier = Modifier) {
                         .size(HomeOperationDetailPatternIconSize)
                         .offset(
                             x = (-18).dp + (HomeOperationDetailPatternStepX * column),
-                            y = (-15).dp + (HomeOperationDetailPatternStepY * row)
+                            y = (-7).dp + (HomeOperationDetailPatternStepY * row)
                         )
                         .graphicsLayer(alpha = HomeOperationDetailPatternAlpha)
                 )
@@ -2750,7 +2813,7 @@ private fun HomeOperationDetailHeaderPattern(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun HomeOperationDetailTypePill() {
+private fun HomeOperationDetailTypePill(pencilBitmap: ImageBitmap?) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -2773,13 +2836,26 @@ private fun HomeOperationDetailTypePill() {
                 )
                 .padding(horizontal = 18.dp, vertical = 5.dp)
         ) {
-            Text(
-                text = "Переказ на картку  ✎",
-                color = Color.White,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                lineHeight = 14.sp
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "\u041F\u0435\u0440\u0435\u043A\u0430\u0437 \u043D\u0430 \u043A\u0430\u0440\u0442\u043A\u0443",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeight = 14.sp
+                )
+                Spacer(modifier = Modifier.width(7.dp))
+                if (pencilBitmap != null) {
+                    Image(
+                        bitmap = pencilBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    Text("\u270E", color = Color.White, fontSize = 12.sp)
+                }
+            }
         }
         Box(
             modifier = Modifier
@@ -2791,7 +2867,7 @@ private fun HomeOperationDetailTypePill() {
 }
 
 @Composable
-private fun HomeOperationDetailInviteCard() {
+private fun HomeOperationDetailInviteCard(referBitmap: ImageBitmap?) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -2820,17 +2896,26 @@ private fun HomeOperationDetailInviteCard() {
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Filled.SupportAgent,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
+                if (referBitmap != null) {
+                    Image(
+                        bitmap = referBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.SupportAgent,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(13.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Запросити отримувача до monobank",
+                    text = "\u0417\u0430\u043F\u0440\u043E\u0441\u0438\u0442\u0438 \u043E\u0442\u0440\u0438\u043C\u0443\u0432\u0430\u0447\u0430 \u0434\u043E monobank",
                     color = Color(0xFFE6E6E6),
                     fontSize = 16.sp,
                     lineHeight = 19.sp,
@@ -2838,7 +2923,7 @@ private fun HomeOperationDetailInviteCard() {
                 )
                 Spacer(modifier = Modifier.height(5.dp))
                 Text(
-                    text = "Та отримати 100 ₴ на рахунок кешбеку",
+                    text = "\u0422\u0430 \u043E\u0442\u0440\u0438\u043C\u0430\u0442\u0438 100 \u20B4 \u043D\u0430 \u0440\u0430\u0445\u0443\u043D\u043E\u043A \u043A\u0435\u0448\u0431\u0435\u043A\u0443",
                     color = Color(0xFF8B8B8F),
                     fontSize = 14.sp,
                     lineHeight = 17.sp,
@@ -2850,7 +2935,7 @@ private fun HomeOperationDetailInviteCard() {
 }
 
 @Composable
-private fun HomeOperationDetailPlaceholderRow() {
+private fun HomeOperationDetailPlaceholderRow(tagsBitmap: ImageBitmap?) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
@@ -2860,15 +2945,24 @@ private fun HomeOperationDetailPlaceholderRow() {
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Filled.Description,
-                contentDescription = null,
-                tint = Color(0xFF77777B),
-                modifier = Modifier.size(17.dp)
-            )
+            if (tagsBitmap != null) {
+                Image(
+                    bitmap = tagsBitmap,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.Description,
+                    contentDescription = null,
+                    tint = Color(0xFF77777B),
+                    modifier = Modifier.size(17.dp)
+                )
+            }
             Spacer(modifier = Modifier.width(18.dp))
             Text(
-                text = "Опис та #теги",
+                text = "\u041E\u043F\u0438\u0441 \u0442\u0430 #\u0442\u0435\u0433\u0438",
                 color = Color(0xFF77777B),
                 fontSize = 16.sp
             )
@@ -2920,13 +3014,13 @@ private fun HomeOperationDetailBalanceCard(walletBitmap: ImageBitmap?) {
             Spacer(modifier = Modifier.width(18.dp))
             Column {
                 Text(
-                    text = "Залишок",
+                    text = "\u0417\u0430\u043B\u0438\u0448\u043E\u043A",
                     color = Color(0xFF8A8A8D),
                     fontSize = 16.sp,
                     lineHeight = 18.sp
                 )
                 Text(
-                    text = "2 781.49 ₴",
+                    text = "2 781.49 \u20B4",
                     color = Color(0xFFE9E9E9),
                     fontSize = 18.sp,
                     lineHeight = 20.sp
@@ -2936,60 +3030,132 @@ private fun HomeOperationDetailBalanceCard(walletBitmap: ImageBitmap?) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HomeOperationDetailSpentChart() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        color = Color(0xFF262626)
+    val allMonthLabels = remember {
+        listOf(
+            "\u0441\u0456\u0447",
+            "\u043b\u044e\u0442",
+            "\u0431\u0435\u0440",
+            "\u043a\u0432\u0456",
+            "\u0442\u0440\u0430",
+            "\u0447\u0435\u0440",
+            "\u043b\u0438\u043f",
+            "\u0441\u0435\u0440",
+            "\u0432\u0435\u0440",
+            "\u0436\u043e\u0432",
+            "\u043b\u0438\u0441",
+            "\u0433\u0440\u0443"
+        )
+    }
+    val visibleMonthIndices = remember {
+        val currentMonthIndex = LocalDate.now().monthValue - 1
+        (5 downTo 0).map { offset ->
+            (currentMonthIndex - offset + 12) % 12
+        }
+    }
+    val visibleMonthLabels = remember(visibleMonthIndices) {
+        visibleMonthIndices.map { allMonthLabels[it] }
+    }
+    var showSettings by remember { mutableStateOf(false) }
+    var topLineInput by remember { mutableStateOf("200") }
+    var middleLineInput by remember { mutableStateOf("100") }
+    var monthInputs by remember {
+        mutableStateOf(
+            listOf("6", "5", "4", "180", "5", "85", "0", "0", "0", "0", "0", "0")
+        )
+    }
+    val topLineRaw = topLineInput.toFloatOrNull()?.coerceAtLeast(1f) ?: 200f
+    val middleLine = (middleLineInput.toFloatOrNull() ?: (topLineRaw / 2f)).coerceIn(0f, topLineRaw)
+    val topLine = topLineRaw.coerceAtLeast(middleLine.coerceAtLeast(1f))
+    val monthValues = monthInputs.map { it.toFloatOrNull()?.coerceAtLeast(0f) ?: 0f }
+    val visibleMonthValues = visibleMonthIndices.map { monthValues[it] }
+    val totalSpent = visibleMonthValues.sum().toInt()
+
+    if (showSettings) {
+        HomeOperationDetailChartSettingsDialog(
+            monthLabels = visibleMonthLabels,
+            topLineInput = topLineInput,
+            middleLineInput = middleLineInput,
+            monthInputs = visibleMonthIndices.map { monthInputs.getOrElse(it) { "" } },
+            onTopLineChange = { topLineInput = it },
+            onMiddleLineChange = { middleLineInput = it },
+            onMonthChange = { index, value ->
+                monthInputs = monthInputs.toMutableList().also { it[visibleMonthIndices[index]] = value }
+            },
+            onDismiss = { showSettings = false }
+        )
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { },
+                onLongClick = { showSettings = true }
+            )
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(1.dp)
-                        .background(Color.White.copy(alpha = 0.13f))
-                )
-                Text(
-                    text = "Витратили 299 ₴ за півроку",
-                    color = Color(0xFF96969A),
-                    fontSize = 12.sp,
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(999.dp))
-                        .padding(horizontal = 12.dp, vertical = 3.dp)
-                )
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(1.dp)
-                        .background(Color.White.copy(alpha = 0.13f))
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(Color.White.copy(alpha = 0.13f))
+            )
+            Text(
+                text = "\u0412\u0438\u0442\u0440\u0430\u0442\u0438\u043b\u0438 $totalSpent \u20b4 \u0437\u0430 \u043f\u0456\u0432\u0440\u043e\u043a\u0443",
+                color = Color(0xFF96969A),
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(999.dp))
+                    .padding(horizontal = 12.dp, vertical = 3.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(Color.White.copy(alpha = 0.13f))
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp),
+            color = Color(0xFF262626)
+        ) {
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
                     .height(142.dp)
             ) {
                 val leftInset = 44.dp
                 val chartWidth = maxWidth - leftInset - 6.dp
-                val chartLabels = listOf("Р»РёСЃ", "РіСЂСѓ", "СЃС–С‡", "Р»СЋС‚", "Р±РµСЂ", "РєРІС–")
+                val chartTopInset = 16.dp
+                val chartBottomInset = 36.dp
+                val chartHeightDp = 142.dp - chartTopInset - chartBottomInset
+                val middleFractionForLabel = (middleLine / topLine).coerceIn(0f, 1f)
+                val topLabelY = chartTopInset - 14.dp
+                val middleLabelY = chartTopInset + chartHeightDp * (1f - middleFractionForLabel) - 14.dp
+                val bottomLabelY = chartTopInset + chartHeightDp - 14.dp
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val axis = Color.White.copy(alpha = 0.2f)
                     val leftInsetPx = leftInset.toPx()
-                    val bottomInset = 28.dp.toPx()
-                    val topInset = 8.dp.toPx()
+                    val bottomInset = 36.dp.toPx()
+                    val topInset = 16.dp.toPx()
                     val chartWidthPx = size.width - leftInsetPx - 6.dp.toPx()
                     val chartHeight = size.height - bottomInset - topInset
-                    listOf(0f, 0.5f, 1f).forEach { fraction ->
+                    val middleFraction = (middleLine / topLine).coerceIn(0f, 1f)
+                    listOf(0f, middleFraction, 1f).forEach { fraction ->
                         val y = topInset + chartHeight * (1f - fraction)
                         drawLine(
                             color = axis,
@@ -2999,39 +3165,51 @@ private fun HomeOperationDetailSpentChart() {
                             pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(4f, 4f))
                         )
                     }
-                    val bars = listOf(0.03f, 0.03f, 0.03f, 0.86f, 0.03f, 0.48f)
-                    val barWidth = 16.dp.toPx()
-                    val gap = (chartWidthPx - barWidth * bars.size) / (bars.size + 1)
-                    bars.forEachIndexed { index, value ->
-                        val left = leftInsetPx + gap + index * (barWidth + gap)
-                        val barHeight = chartHeight * value
-                        drawRoundRect(
-                            brush = Brush.verticalGradient(
-                                listOf(Color(0xFFD83BAC), Color(0xFF4A43CB)),
-                                startY = topInset + chartHeight - barHeight,
-                                endY = topInset + chartHeight
-                            ),
-                            topLeft = Offset(left, topInset + chartHeight - barHeight),
-                            size = Size(barWidth, barHeight),
-                            cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
-                        )
+                    val barWidth = 15.dp.toPx()
+                    val zeroBarHeight = 3.dp.toPx()
+                    val slotWidth = chartWidthPx / visibleMonthValues.size
+                    visibleMonthValues.forEachIndexed { index, amount ->
+                        val value = (amount / topLine).coerceIn(0f, 1f)
+                        val centerX = leftInsetPx + slotWidth * (index + 0.5f)
+                        val left = centerX - barWidth / 2f
+                        val barHeight = if (amount <= 0f) zeroBarHeight else (chartHeight * value).coerceAtLeast(zeroBarHeight)
+                        if (amount <= 0f) {
+                            drawRoundRect(
+                                color = Color(0xFFDEDEDE),
+                                topLeft = Offset(left, topInset + chartHeight - barHeight),
+                                size = Size(barWidth, barHeight),
+                                cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                            )
+                        } else {
+                            drawRoundRect(
+                                brush = Brush.verticalGradient(
+                                    listOf(Color(0xFFD83BAC), Color(0xFF4A43CB)),
+                                    startY = topInset + chartHeight - barHeight,
+                                    endY = topInset + chartHeight
+                                ),
+                                topLeft = Offset(left, topInset + chartHeight - barHeight),
+                                size = Size(barWidth, barHeight),
+                                cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
+                            )
+                        }
                     }
                 }
-                Text("200 в‚ґ", color = Color(0xFFE1E1E1), fontSize = 12.sp, modifier = Modifier.offset(x = 0.dp, y = 2.dp))
-                Text("100 в‚ґ", color = Color(0xFFE1E1E1), fontSize = 12.sp, modifier = Modifier.offset(x = 0.dp, y = 46.dp))
-                Text("0 в‚ґ", color = Color(0xFFE1E1E1), fontSize = 12.sp, modifier = Modifier.offset(x = 10.dp, y = 89.dp))
+                Text("${topLine.toInt()} \u20b4", color = Color(0xFFE1E1E1), fontSize = 12.sp, modifier = Modifier.offset(x = 0.dp, y = topLabelY))
+                Text("${middleLine.toInt()} \u20b4", color = Color(0xFFE1E1E1), fontSize = 12.sp, modifier = Modifier.offset(x = 0.dp, y = middleLabelY))
+                Text("0 \u20b4", color = Color(0xFFE1E1E1), fontSize = 12.sp, modifier = Modifier.offset(x = 10.dp, y = bottomLabelY))
                 Row(
                     modifier = Modifier
-                        .offset(x = leftInset, y = 114.dp)
+                        .offset(x = leftInset, y = chartTopInset + chartHeightDp + 8.dp)
                         .requiredWidth(chartWidth),
                     horizontalArrangement = Arrangement.SpaceAround
                 ) {
-                    chartLabels.forEach { label ->
+                    visibleMonthLabels.forEach { label ->
                         Text(
                             text = label,
                             color = Color(0xFF8B8B8F),
                             fontSize = 12.sp,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
@@ -3041,7 +3219,89 @@ private fun HomeOperationDetailSpentChart() {
 }
 
 @Composable
-private fun HomeOperationDetailReceiptCard(linkBitmap: ImageBitmap?, shareBitmap: ImageBitmap?) {
+private fun HomeOperationDetailChartSettingsDialog(
+    monthLabels: List<String>,
+    topLineInput: String,
+    middleLineInput: String,
+    monthInputs: List<String>,
+    onTopLineChange: (String) -> Unit,
+    onMiddleLineChange: (String) -> Unit,
+    onMonthChange: (Int, String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF262626),
+        title = {
+            Text(
+                text = "\u041d\u0430\u043b\u0430\u0448\u0442\u0443\u0432\u0430\u0442\u0438 \u0433\u0440\u0430\u0444\u0456\u043a",
+                color = Color(0xFFE6E6E6),
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(430.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                HomeOperationDetailChartField(
+                    value = middleLineInput,
+                    onValueChange = onMiddleLineChange,
+                    label = "\u0421\u0443\u043c\u0430 \u0434\u0440\u0443\u0433\u043e\u0457 \u043b\u0456\u043d\u0456\u0457"
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                HomeOperationDetailChartField(
+                    value = topLineInput,
+                    onValueChange = onTopLineChange,
+                    label = "\u0421\u0443\u043c\u0430 \u0442\u0440\u0435\u0442\u044c\u043e\u0457 \u043b\u0456\u043d\u0456\u0457"
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                monthLabels.forEachIndexed { index, label ->
+                    HomeOperationDetailChartField(
+                        value = monthInputs.getOrElse(index) { "" },
+                        onValueChange = { onMonthChange(index, it) },
+                        label = "\u0421\u0443\u043c\u0430: $label"
+                    )
+                    if (index != monthLabels.lastIndex) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "OK", color = Color(0xFFE6E6E6))
+            }
+        }
+    )
+}
+
+@Composable
+private fun HomeOperationDetailChartField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { next ->
+            onValueChange(next.filter { it.isDigit() || it == '.' || it == ',' }.replace(',', '.'))
+        },
+        label = { Text(text = label, color = Color(0xFFB8B8B8)) },
+        singleLine = true,
+        textStyle = TextStyle(color = Color(0xFFE6E6E6), fontSize = 15.sp),
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun HomeOperationDetailReceiptCard(
+    linkBitmap: ImageBitmap?,
+    copyLinkBitmap: ImageBitmap?,
+    shareBitmap: ImageBitmap?
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
@@ -3053,7 +3313,7 @@ private fun HomeOperationDetailReceiptCard(linkBitmap: ImageBitmap?, shareBitmap
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(28.dp)
                         .then(
                             if (linkBitmap == null) {
                                 Modifier
@@ -3079,17 +3339,28 @@ private fun HomeOperationDetailReceiptCard(linkBitmap: ImageBitmap?, shareBitmap
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Посилання на квитанцію",
+                        text = "\u041F\u043E\u0441\u0438\u043B\u0430\u043D\u043D\u044F \u043D\u0430 \u043A\u0432\u0438\u0442\u0430\u043D\u0446\u0456\u044E",
                         color = Color(0xFFE2E2E2),
                         fontSize = 17.sp
                     )
-                    Text(
-                        text = "check.monobank.ua/p/6gKR0bczqRK9Q...",
-                        color = Color(0xFF8B8B8F),
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (copyLinkBitmap != null) {
+                            Image(
+                                bitmap = copyLinkBitmap,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                        Text(
+                            text = "check.monobank.ua/p/6gKR0bczqRK9Q...",
+                            color = Color(0xFF8B8B8F),
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(14.dp))
@@ -3112,11 +3383,11 @@ private fun HomeOperationDetailReceiptCard(linkBitmap: ImageBitmap?, shareBitmap
                             contentScale = ContentScale.Fit
                         )
                     } else {
-                        Text("⌘", color = Color(0xFFE6E6E6), fontSize = 16.sp)
+                        Text("\u2318", color = Color(0xFFE6E6E6), fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Поділитися",
+                        text = "\u041F\u043E\u0434\u0456\u043B\u0438\u0442\u0438\u0441\u044F",
                         color = Color(0xFFE6E6E6),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
@@ -3128,21 +3399,277 @@ private fun HomeOperationDetailReceiptCard(linkBitmap: ImageBitmap?, shareBitmap
 }
 
 @Composable
+private fun HomeOperationPdfReceiptScreen(
+    operation: HomeOperationUi,
+    onDismiss: () -> Unit
+) {
+    val receiptNumber = operation.receiptNumber.ifBlank { "CHEA-EKE4-3M3A-A37P" }
+    val context = LocalContext.current
+    val pdfPage = rememberPdfFirstPageImageBitmap(operation.receiptPdfUri)
+    val pdfUri = operation.receiptPdfUri?.takeIf { it.isNotBlank() }
+    val composition by rememberLottieComposition(LottieCompositionSpec.Asset(HomeOperationReceiptLoaderAsset))
+    val progress by animateLottieCompositionAsState(
+        composition = composition,
+        iterations = LottieConstants.IterateForever,
+        isPlaying = composition != null
+    )
+    var showLoader by remember(operation) { mutableStateOf(true) }
+
+    LaunchedEffect(operation) {
+        showLoader = true
+        delay(650)
+        showLoader = false
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        SystemBarsColorEffect(
+            statusBarColor = Color(0xFF262626),
+            navigationBarColor = Color(0xFF1D1D1D),
+            decorBackgroundColor = Color(0xFF1D1D1D)
+        )
+        val dialogView = LocalView.current
+        DisposableEffect(dialogView) {
+            val window = (dialogView.parent as? DialogWindowProvider)?.window
+            val previousStatusBarColor = window?.statusBarColor
+            val previousNavigationBarColor = window?.navigationBarColor
+            window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+            window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color(0xFF1D1D1D).toArgb()))
+            window?.decorView?.setBackgroundColor(Color(0xFF1D1D1D).toArgb())
+            window?.statusBarColor = Color(0xFF262626).toArgb()
+            window?.navigationBarColor = Color(0xFF1D1D1D).toArgb()
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                window?.isStatusBarContrastEnforced = false
+                window?.isNavigationBarContrastEnforced = false
+            }
+            window?.setLayout(
+                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                android.view.WindowManager.LayoutParams.MATCH_PARENT
+            )
+            onDispose {
+                if (previousStatusBarColor != null) {
+                    window.statusBarColor = previousStatusBarColor
+                }
+                if (previousNavigationBarColor != null) {
+                    window.navigationBarColor = previousNavigationBarColor
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF1D1D1D))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF262626))
+                        .statusBarsPadding()
+                        .padding(bottom = 16.dp)
+                ) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .padding(start = 2.dp, top = 8.dp)
+                            .size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(R.string.jar_bank_back_cd),
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Text(
+                        text = "\u041A\u0432\u0438\u0442\u0430\u043D\u0446\u0456\u044F",
+                        color = Color(0xFFE4E4E4),
+                        fontSize = 20.sp,
+                        lineHeight = 23.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 18.dp)
+                    )
+                    Text(
+                        text = "\u2116 $receiptNumber",
+                        color = Color(0xFFC8C8C8),
+                        fontSize = 14.sp,
+                        lineHeight = 17.sp,
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp)
+                    )
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 18.dp)
+                        .padding(top = 16.dp)
+                ) {
+                    if (pdfPage != null) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(0.65f),
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color.White
+                        ) {
+                            Box(contentAlignment = Alignment.TopCenter) {
+                                Image(
+                                    bitmap = pdfPage,
+                                    contentDescription = "\u041A\u0432\u0438\u0442\u0430\u043D\u0446\u0456\u044F PDF",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 2.dp, top = 12.dp, end = 2.dp, bottom = 2.dp),
+                                    contentScale = ContentScale.FillWidth
+                                )
+                            }
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.fillMaxWidth().height(540.dp))
+                    }
+                    Spacer(modifier = Modifier.height(26.dp))
+                }
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 12.dp)
+                        .height(52.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            shareOperationReceiptPdf(
+                                context = context,
+                                pdfUri = pdfUri,
+                                receiptNumber = receiptNumber
+                            )
+                        },
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFF4E55)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "\u041F\u043E\u0434\u0456\u043B\u0438\u0442\u0438\u0441\u044F",
+                            color = Color.White,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            if (showLoader) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.58f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        modifier = Modifier.size(66.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF1D1D1D)
+                    ) {
+                        LottieAnimation(
+                            composition = composition,
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(10.dp),
+                            enableMergePaths = true
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun rememberPdfFirstPageImageBitmap(pdfUri: String?): ImageBitmap? {
+    val context = LocalContext.current
+    var image by remember(pdfUri) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(pdfUri) {
+        image = null
+        if (pdfUri.isNullOrBlank()) return@LaunchedEffect
+        image = withContext(Dispatchers.IO) {
+            renderPdfFirstPage(context, pdfUri)?.asImageBitmap()
+        }
+    }
+    return image
+}
+
+private fun renderPdfFirstPage(context: android.content.Context, pdfUri: String): Bitmap? {
+    return runCatching {
+        val uri = Uri.parse(pdfUri)
+        context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
+            PdfRenderer(descriptor).use { renderer ->
+                if (renderer.pageCount <= 0) {
+                    null
+                } else {
+                    renderer.openPage(0).use { page ->
+                        val scale = 2
+                        val bitmap = Bitmap.createBitmap(
+                            page.width * scale,
+                            page.height * scale,
+                            Bitmap.Config.ARGB_8888
+                        )
+                        bitmap.eraseColor(android.graphics.Color.WHITE)
+                        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        bitmap
+                    }
+                }
+            }
+        }
+    }.getOrNull()
+}
+
+private fun shareOperationReceiptPdf(
+    context: android.content.Context,
+    pdfUri: String?,
+    receiptNumber: String
+) {
+    if (pdfUri.isNullOrBlank()) return
+    val uri = Uri.parse(pdfUri)
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/pdf"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        putExtra(Intent.EXTRA_SUBJECT, "\u041A\u0432\u0438\u0442\u0430\u043D\u0446\u0456\u044F \u2116 $receiptNumber")
+        clipData = ClipData.newUri(context.contentResolver, "\u041A\u0432\u0438\u0442\u0430\u043D\u0446\u0456\u044F \u2116 $receiptNumber", uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(
+        Intent.createChooser(sendIntent, "\u041F\u043E\u0434\u0456\u043B\u0438\u0442\u0438\u0441\u044F")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    )
+}
+
+@Composable
 private fun HomeOperationDetailActions(
     splitBitmap: ImageBitmap?,
     repeatBitmap: ImageBitmap?,
     saveCardBitmap: ImageBitmap?,
     showPdfBitmap: ImageBitmap?,
     regularPaymentBitmap: ImageBitmap?,
-    questionBitmap: ImageBitmap?
+    questionBitmap: ImageBitmap?,
+    onPdfReceiptClick: () -> Unit
 ) {
     val rows = listOf(
-        "Розділити витрату" to Icons.Filled.Layers,
-        "Повторити платіж" to Icons.Filled.CreditCard,
-        "Зберегти картку" to Icons.Filled.CreditCard,
-        "Переглянути PDF-квитанцію" to Icons.AutoMirrored.Filled.ReceiptLong,
-        "Зробити регулярним" to Icons.Outlined.Settings,
-        "Поставити запитання" to Icons.Filled.QuestionMark
+        "\u0420\u043E\u0437\u0434\u0456\u043B\u0438\u0442\u0438 \u0432\u0438\u0442\u0440\u0430\u0442\u0443" to Icons.Filled.Layers,
+        "\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0438 \u043F\u043B\u0430\u0442\u0456\u0436" to Icons.Filled.CreditCard,
+        "\u0417\u0431\u0435\u0440\u0435\u0433\u0442\u0438 \u043A\u0430\u0440\u0442\u043A\u0443" to Icons.Filled.CreditCard,
+        "\u041F\u0435\u0440\u0435\u0433\u043B\u044F\u043D\u0443\u0442\u0438 PDF-\u043A\u0432\u0438\u0442\u0430\u043D\u0446\u0456\u044E" to Icons.AutoMirrored.Filled.ReceiptLong,
+        "\u0417\u0440\u043E\u0431\u0438\u0442\u0438 \u0440\u0435\u0433\u0443\u043B\u044F\u0440\u043D\u0438\u043C" to Icons.Outlined.Settings,
+        "\u041F\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u0438 \u0437\u0430\u043F\u0438\u0442\u0430\u043D\u043D\u044F" to Icons.Filled.QuestionMark
     )
     Column(
         modifier = Modifier
@@ -3157,7 +3684,9 @@ private fun HomeOperationDetailActions(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
-                    ) { }
+                    ) {
+                        if (index == 3) onPdfReceiptClick()
+                    }
                     .padding(vertical = 17.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -3623,7 +4152,7 @@ private fun HomeBottomBar(
     }
 }
 
-/** «Маркет»: один статичний кадр; при зміні вкладки — скидан на початок + сірий тінт, як у «Картки». */
+/** В«РњР°СЂРєРµС‚В»: РѕРґРёРЅ СЃС‚Р°С‚РёС‡РЅРёР№ РєР°РґСЂ; РїСЂРё Р·РјС–РЅС– РІРєР»Р°РґРєРё вЂ” СЃРєРёРґР°РЅ РЅР° РїРѕС‡Р°С‚РѕРє + СЃС–СЂРёР№ С‚С–РЅС‚, СЏРє Сѓ В«РљР°СЂС‚РєРёВ». */
 @Composable
 private fun NavMarketLottieSingleFrame(
     label: String,
@@ -3867,7 +4396,7 @@ private fun BottomBarNavLabel(
     )
 }
 
-/** PNG `gift-box_negate` біля суми кешбеку; якщо файлу немає — [Icons.Outlined.CardGiftcard]. */
+/** PNG `gift-box_negate` Р±С–Р»СЏ СЃСѓРјРё РєРµС€Р±РµРєСѓ; СЏРєС‰Рѕ С„Р°Р№Р»Сѓ РЅРµРјР°С” вЂ” [Icons.Outlined.CardGiftcard]. */
 @Composable
 private fun HomeCashbackGiftIcon(modifier: Modifier = Modifier) {
     Image(
