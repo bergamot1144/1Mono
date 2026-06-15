@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -183,8 +182,8 @@ fun SavingsTabScreen(
         SavingsHeaderSlide(R.string.savings_header_title_eur, eurBalanceText)
     )
     SystemBarsColorEffect(
-        statusBarColor = SavingsHeaderTop,
-        navigationBarColor = SavingsScreenBg,
+        statusBarColor = Color.Transparent,
+        navigationBarColor = Color.Transparent,
         decorBackgroundColor = SavingsScreenBg
     )
     val headerPagerState = rememberPagerState(pageCount = { headerSlides.size })
@@ -308,10 +307,9 @@ fun SavingsTabScreen(
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                        .navigationBarsPadding(),
+                        .fillMaxWidth(),
                     contentPadding = PaddingValues(
-                    top = 46.dp,
+                        top = 46.dp,
                         bottom = 112.dp
                     )
                 ) {

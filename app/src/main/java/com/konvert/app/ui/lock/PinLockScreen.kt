@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.konvert.app.R
 import com.konvert.app.admin.LocalAppAdmin
+import com.konvert.app.ui.home.SystemBarsColorEffect
 import com.konvert.app.ui.theme.AvatarPlaceholder
 import com.konvert.app.ui.theme.ErrorTint
 import com.konvert.app.ui.theme.GreetingText
@@ -75,6 +76,7 @@ private const val PinOperationsLogosPath = "operations_logos"
 private const val PinFaceIdNegateInOperationsLogos = "$PinOperationsLogosPath/face-id_negate.png"
 private const val PinFaceIdNegateInOperationsLogosUnderscore = "$PinOperationsLogosPath/face_id_negate.png"
 private const val PinBackspaceAsset = "$PinOperationsLogosPath/backspace.png"
+private val PinScreenBg = Color(0xFF1D1D1D)
 
 @Composable
 private fun rememberFaceIdNegateBitmap(): ImageBitmap? {
@@ -129,6 +131,11 @@ private fun Bitmap.cropBackspaceIcon(): Bitmap {
 
 @Composable
 fun PinLockScreen(onUnlocked: () -> Unit) {
+    SystemBarsColorEffect(
+        statusBarColor = PinScreenBg,
+        navigationBarColor = PinScreenBg,
+        decorBackgroundColor = PinScreenBg
+    )
     var pin by remember { mutableStateOf("") }
     var showError by remember { mutableStateOf(false) }
     val admin = LocalAppAdmin.current

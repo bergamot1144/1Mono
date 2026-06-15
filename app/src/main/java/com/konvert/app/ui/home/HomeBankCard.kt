@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -295,15 +296,18 @@ internal fun HomeMonoTiltedCard(
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current.density
-    val plateWidth = HomeBankCardFrame.width - (HomeBankCardWidthNarrowPxTotal / density).dp
-    Box(
+    val basePlateWidth = HomeBankCardFrame.width - (HomeBankCardWidthNarrowPxTotal / density).dp
+    BoxWithConstraints(
         modifier = modifier.height(HomeBankCardFrame.height),
         contentAlignment = Alignment.Center
     ) {
+        val plateWidth = basePlateWidth.coerceAtMost(maxWidth + 6.dp)
+        val plateScale = (plateWidth / basePlateWidth).coerceAtMost(1f)
+        val plateHeight = HomeBankCardFrame.height * plateScale
         Box(
             modifier = Modifier
                 .width(plateWidth)
-                .height(HomeBankCardFrame.height)
+                .height(plateHeight)
                 .graphicsLayer {
                     rotationX = rotationXDegrees
                     rotationY = rotationYDegrees

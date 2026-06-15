@@ -254,15 +254,15 @@ internal fun JarBankDetailScreen(
     }
     val sheetTop = statusBarTop + darkSheetTopInset
     SystemBarsColorEffect(
-        statusBarColor = JarHeaderPink,
-        navigationBarColor = JarScreenBg,
-        decorBackgroundColor = JarScreenBg
+        statusBarColor = Color.Transparent,
+        navigationBarColor = Color.Transparent,
+        decorBackgroundColor = JarStatsSectionBg
     )
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(JarScreenBg)
+            .background(JarStatsSectionBg)
     ) {
         Box(
             modifier = Modifier
@@ -288,7 +288,6 @@ internal fun JarBankDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = sheetTop + 40.dp)
-                .navigationBarsPadding()
                 .verticalScroll(scroll)
         ) {
             Column(

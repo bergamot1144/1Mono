@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.konvert.app.ui.home.HomeCardDetailScreen
 import com.konvert.app.ui.home.HomeCardsCarouselPageCount
 import com.konvert.app.ui.home.HomeCardsTabDashboard
+import com.konvert.app.ui.home.HomeOperationUi
 import com.konvert.app.ui.home.HomeProfileMenuBottomSheet
 import com.konvert.app.ui.home.StaticHomeBackground
 
@@ -38,7 +39,8 @@ import com.konvert.app.ui.home.StaticHomeBackground
 @Composable
 fun CardsTabScreen(
     modifier: Modifier = Modifier,
-    onOpenAdmin: () -> Unit = {}
+    onOpenAdmin: () -> Unit = {},
+    onOperationSelected: (HomeOperationUi) -> Unit = {}
 ) {
     val pageCount = HomeCardsCarouselPageCount
     val pagerState = rememberPagerState(pageCount = { pageCount })
@@ -140,6 +142,7 @@ fun CardsTabScreen(
                     onPagerSectionHeightPx = { pagerSectionHeightPx = it },
                     onHomeScrollContentHeightPx = { homeScrollContentHeightPx = it },
                     onRequestProfileMenu = { profileMenuOpen = true },
+                    onOperationSelected = onOperationSelected,
                     pullToRefreshOffsetDp = operationsDropDp,
                     modifier = Modifier
                         .fillMaxSize()

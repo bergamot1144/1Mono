@@ -75,6 +75,7 @@ import com.konvert.app.admin.CardAdminConfig
 import com.konvert.app.admin.CardOperationAdminConfig
 import com.konvert.app.admin.JarAdminConfig
 import com.konvert.app.admin.JarTopUpTransactionAdminConfig
+import com.konvert.app.ui.home.SystemBarsColorEffect
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.max
@@ -87,6 +88,15 @@ private val AdminGreen = Color(0xFF0A8433)
 private val AdminLabel = Color(0xFFAEAEB2)
 private val AdminCardBg = Color(0xFF242424)
 private val AdminAvatarCircleBg = Color(0xFF333333)
+
+@Composable
+private fun AdminSystemBars() {
+    SystemBarsColorEffect(
+        statusBarColor = AdminBg,
+        navigationBarColor = AdminBg,
+        decorBackgroundColor = AdminBg
+    )
+}
 
 enum class JarAdminTransactionsKind {
     CardNumber,
@@ -101,15 +111,19 @@ fun AdminMainPanel(
     onOpenCardSettings: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    AdminSystemBars()
     val s = controller.state
     var mainFirst by remember { mutableStateOf(s.mainFirstName) }
     var fullName by remember { mutableStateOf(s.accountFullName) }
+    var cashbackAmount by remember { mutableStateOf(s.cashbackAmount) }
     LaunchedEffect(
         s.mainFirstName,
-        s.accountFullName
+        s.accountFullName,
+        s.cashbackAmount
     ) {
         mainFirst = s.mainFirstName
         fullName = s.accountFullName
+        cashbackAmount = s.cashbackAmount
     }
 
     Column(
@@ -161,6 +175,11 @@ fun AdminMainPanel(
                 value = fullName,
                 onValueChange = { fullName = it }
             )
+            AdminLabeledField(
+                label = stringResource(R.string.admin_field_cashback_amount),
+                value = cashbackAmount,
+                onValueChange = { cashbackAmount = it }
+            )
             Spacer(modifier = Modifier.height(8.dp))
             controller.state.cards.forEachIndexed { index, card ->
                 val cardSettingsLabel = when (index) {
@@ -204,7 +223,8 @@ fun AdminMainPanel(
                     accountFullName = fullName,
                     balanceMain = controller.state.balanceMain,
                     balanceWallet = controller.state.balanceWallet,
-                    balanceCredit = controller.state.balanceCredit
+                    balanceCredit = controller.state.balanceCredit,
+                    cashbackAmount = cashbackAmount
                 )
                 onBack()
             },
@@ -228,6 +248,7 @@ fun CardAdminPanel(
     onOpenOperationsSettings: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    AdminSystemBars()
     val card = controller.state.cardOrDefault(cardIndex)
     var name by remember(cardIndex) { mutableStateOf(card.name) }
     var balance by remember(cardIndex) { mutableStateOf(card.balanceDisplay) }
@@ -330,7 +351,8 @@ fun CardAdminPanel(
                             accountFullName = controller.state.accountFullName,
                             balanceMain = balMain,
                             balanceWallet = balWallet,
-                            balanceCredit = balCredit
+                            balanceCredit = balCredit,
+                            cashbackAmount = controller.state.cashbackAmount
                         )
                     }
                     controller.updateCard(
@@ -361,6 +383,7 @@ fun CardOperationsAdminPanel(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    AdminSystemBars()
     val context = LocalContext.current
     val defaultOperationTitle = stringResource(R.string.admin_card_operation_default_title)
     val defaultOperationAmount = stringResource(R.string.admin_card_operation_default_amount)
@@ -438,6 +461,15 @@ fun CardOperationsAdminPanel(
                     onValueChange = { value ->
                         operations = operations.mapIndexed { i, op ->
                             if (i == opIndex) op.copy(dateLabel = value) else op
+                        }
+                    }
+                )
+                AdminLabeledField(
+                    label = stringResource(R.string.admin_card_operation_balance_after, opIndex + 1),
+                    value = operation.balanceAfter,
+                    onValueChange = { value ->
+                        operations = operations.mapIndexed { i, op ->
+                            if (i == opIndex) op.copy(balanceAfter = value) else op
                         }
                     }
                 )
@@ -557,6 +589,7 @@ fun JarAdminPanel(
     onOpenTransactionsSettings: (Int, JarAdminTransactionsKind) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    AdminSystemBars()
     val jar = controller.state.jarOrDefault(jarIndex)
     var name by remember(jarIndex) { mutableStateOf(jar.name) }
     var balance by remember(jarIndex) { mutableStateOf(jar.balanceDisplay) }
@@ -764,6 +797,7 @@ fun JarTransactionsAdminPanel(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    AdminSystemBars()
     val jar = controller.state.jarOrDefault(jarIndex)
     val defaultSignature = when (kind) {
         JarAdminTransactionsKind.CardNumber -> "Номер картки банки"

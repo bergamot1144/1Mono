@@ -209,6 +209,7 @@
     <string name="admin_avatar_cd">Поточний аватар</string>
     <string name="admin_field_name_main">Імʼя (пін-код)</string>
     <string name="admin_field_name_account">Імʼя та прізвище (обліковий запис)</string>
+    <string name="admin_field_cashback_amount">Сума кешбеку</string>
     <string name="admin_field_balance_main">Баланс чорної картки (загальний)</string>
     <string name="admin_field_balance_wallet">Баланс чорної картки (особисті)</string>
     <string name="admin_field_balance_credit">Баланс чорної картки (кредитні)</string>
@@ -227,6 +228,7 @@
     <string name="admin_card_operation_name">Операція %1$d: назва</string>
     <string name="admin_card_operation_amount">Операція %1$d: сума</string>
     <string name="admin_card_operation_date">Операція %1$d: дата</string>
+    <string name="admin_card_operation_balance_after">Операція %1$d: залишок після операції</string>
     <string name="admin_card_operation_has_commission">Додати комісію</string>
     <string name="admin_card_operation_commission">Операція %1$d: комісія</string>
     <string name="admin_card_operation_delete">Видалити операцію</string>

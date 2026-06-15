@@ -243,7 +243,7 @@ private val HomeCardsLazyHorizontalPadding = 14.dp
  * Р“РѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅРёР№ inset [HorizontalPager] вЂ” С‚РѕРЅРєС– СЃРјСѓРіРё СЃСѓСЃС–РґРЅС–С… РєР°СЂС‚ Р±С–Р»СЏ С†РµРЅС‚СЂР°Р»СЊРЅРѕС—,
  * Р±Р»РёР·СЊРєРѕ РґРѕ РѕСЃРЅРѕРІРЅРѕС— РїР»Р°СЃС‚РёРЅРё (РЅРµ В«С€РёСЂРѕРєРёР№В» carousel).
  */
-private val HomeCardsPagerHorizontalPeek = 8.dp
+private val HomeCardsPagerHorizontalPeek = 12.dp
 
 /** РњС–РЅС–РјР°Р»СЊРЅРёР№ Р·Р°Р·РѕСЂ РјС–Р¶ СЃС‚РѕСЂС–РЅРєР°РјРё РІ РїРµР№РґР¶РµСЂС– (РѕСЃРЅРѕРІРЅРёР№ СЂСѓС… вЂ” РЅР°С‚РёРІРЅРёР№ scroll РїРµР№РґР¶РµСЂР°). */
 private val HomeCardsPagerPageSpacing = 0.dp
@@ -769,6 +769,7 @@ fun StaticHomeBackground(
 fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
     var selectedBottomTab by remember { mutableStateOf(HomeBottomNavTab.Cards) }
     var savingsJarFlow by remember { mutableStateOf<SavingsJarFlow>(SavingsJarFlow.None) }
+    var selectedOperation by remember { mutableStateOf<HomeOperationUi?>(null) }
     val bottomBarLiftDp = 0.dp
     /** Р”РѕРґР°С‚РєРѕРІРёР№ Р·СЃРёРі СѓРЅРёР· РЅР° 10 px РµРєСЂР°РЅР° (С‰РѕРґРѕ РїРѕРїРµСЂРµРґРЅСЊРѕРіРѕ РїРѕР»РѕР¶РµРЅРЅСЏ). */
     val bottomBarDownFromPx10 = (10f / LocalDensity.current.density).dp
@@ -781,7 +782,10 @@ fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         when (selectedBottomTab) {
-            HomeBottomNavTab.Cards -> CardsTabScreen(onOpenAdmin = onOpenAdmin)
+            HomeBottomNavTab.Cards -> CardsTabScreen(
+                onOpenAdmin = onOpenAdmin,
+                onOperationSelected = { selectedOperation = it }
+            )
             HomeBottomNavTab.Credits -> CreditsTabScreen()
             HomeBottomNavTab.Savings -> SavingsTabScreen(
                 onOpenJarBankCar = { index -> savingsJarFlow = SavingsJarFlow.Detail(index) }
@@ -861,6 +865,14 @@ fun HomeScreen(onOpenAdmin: () -> Unit = {}) {
                 )
                 SavingsJarFlow.None -> {}
             }
+        }
+
+        selectedOperation?.let { operation ->
+            HomeOperationDetailScreen(
+                operation = operation,
+                onDismiss = { selectedOperation = null },
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }
@@ -964,7 +976,7 @@ private fun Modifier.homeCardsUnifiedPageMotion(
         }
     translationX = outgoingStretchPx + incomingHoldPx
     transformOrigin = TransformOrigin(0.5f, 0.44f)
-    rotationY = (oClamped * -0.8f).coerceIn(-1.6f, 1.6f)
+    rotationY = 0f
     cameraDistance = 26f * densityPx
     alpha = 1f
 }
@@ -978,6 +990,7 @@ internal fun HomeCardsTabDashboard(
     onPagerSectionHeightPx: (Float) -> Unit,
     onHomeScrollContentHeightPx: (Float) -> Unit,
     onRequestProfileMenu: () -> Unit = {},
+    onOperationSelected: (HomeOperationUi) -> Unit = {},
     pullToRefreshOffsetDp: androidx.compose.ui.unit.Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
@@ -1050,6 +1063,7 @@ internal fun HomeCardsTabDashboard(
                             flingBehavior = pagerFling
                         ) { page ->
                         val kind = HomeCarouselCardKind.entries[page]
+                        val pageOffset = pagerPageOffsetForMotion(pagerState, page).coerceIn(-1f, 1f)
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1075,22 +1089,30 @@ internal fun HomeCardsTabDashboard(
                                         .height(HomeCardCarouselLayoutReserveHeight),
                                     contentAlignment = Alignment.TopCenter
                                 ) {
-                                    val pageOffset = pagerPageOffsetForMotion(pagerState, page).coerceIn(-1f, 1f)
-                                    Box(
+                                    BoxWithConstraints(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(HomeCardCarouselPagerVisualHeight)
-                                            .graphicsLayer {
-                                                val firstToSecondHold =
-                                                    firstToSecondIncomingHoldFactor(pagerState, page)
-                                                translationX =
-                                                    pageOffset *
-                                                        HomeCardsPlateNeighborExtraPull.value *
-                                                        motionDensity *
-                                                        firstToSecondHold
-                                            }
                                     ) {
-                                        HomeCardPlaceholder(kind = kind, onCardClick = onOpenCardDetail)
+                                        val adaptivePlateNeighborPull = (maxWidth * 0.10f)
+                                            .coerceAtLeast(24.dp)
+                                            .coerceAtMost(HomeCardsPlateNeighborExtraPull)
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(HomeCardCarouselPagerVisualHeight)
+                                                .graphicsLayer {
+                                                    val firstToSecondHold =
+                                                        firstToSecondIncomingHoldFactor(pagerState, page)
+                                                    translationX =
+                                                        pageOffset *
+                                                            adaptivePlateNeighborPull.value *
+                                                            motionDensity *
+                                                            firstToSecondHold
+                                                }
+                                        ) {
+                                            HomeCardPlaceholder(kind = kind, onCardClick = onOpenCardDetail)
+                                        }
                                     }
                                 }
                                 Box(
@@ -1104,6 +1126,12 @@ internal fun HomeCardsTabDashboard(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .offset(y = HomeSectionOffsetQuickActionsAndOperationsY)
+                                        .graphicsLayer {
+                                            val lowerContentProgress =
+                                                ((0.98f - abs(pageOffset)) / 0.18f).coerceIn(0f, 1f)
+                                            alpha = lowerContentProgress * lowerContentProgress *
+                                                (3f - 2f * lowerContentProgress)
+                                        }
                                 ) {
                                     Spacer(modifier = Modifier.height(HomeSectionGapAllCardsToQuick))
                                     HomeQuickActions()
@@ -1115,6 +1143,7 @@ internal fun HomeCardsTabDashboard(
                                     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                                         HomeOperationsCard(
                                             kind = kind,
+                                            onOperationSelected = onOperationSelected,
                                             modifier = Modifier
                                                 .requiredWidth(maxWidth + HomeCardsPagerHorizontalPeek * 2)
                                                 .offset(y = pullToRefreshOffsetDp)
@@ -1221,6 +1250,9 @@ internal fun HomeProfileMenuBottomSheet(
     val details = stringResource(R.string.home_profile_sheet_details)
     val activeCd = stringResource(R.string.home_profile_sheet_active_cd)
     val profileSheetBg = Color(0xFF252525)
+    val profileSheetBottomInset = with(LocalDensity.current) {
+        WindowInsets.navigationBars.getBottom(this).toDp()
+    }
     val profileAvatar = rememberProfileAvatarBitmap(admin?.state?.profileAvatarPath)
     val detailsBrush = Brush.horizontalGradient(
         listOf(HomeProfileDetailsGradientStart, HomeProfileDetailsGradientEnd)
@@ -1470,6 +1502,13 @@ internal fun HomeProfileMenuBottomSheet(
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(profileSheetBottomInset)
+                    .background(profileSheetBg)
+            )
         }
     }
 }
@@ -1551,7 +1590,10 @@ private fun HomeTopBar(onProfileClick: () -> Unit) {
     val profileMessageBitmap = rememberAssetImageBitmap(HomeProfileMessageAsset)
     val catIconBitmap = rememberAssetImageBitmap(HomeCatIconAsset)
     val chartsCd = stringResource(R.string.home_charts_cd)
-    val bonusAmountText = stringResource(R.string.home_bonus_amount)
+    val defaultBonusAmountText = stringResource(R.string.home_bonus_amount)
+    val bonusAmountText = admin?.state?.cashbackAmount
+        ?.takeIf { it.isNotBlank() }
+        ?: defaultBonusAmountText
     val cashbackChipSemantics =
         stringResource(R.string.home_cashback_chip_semantics, bonusAmountText)
     Row(
@@ -2211,7 +2253,7 @@ private fun QuickAction(label: String, icon: @Composable () -> Unit) {
     }
 }
 
-private data class HomeOperationUi(
+data class HomeOperationUi(
     val title: String,
     val amount: String,
     val dateLabel: String,
@@ -2221,17 +2263,18 @@ private data class HomeOperationUi(
     val logoAssetName: String?,
     val logoCircleBackground: Color = AvatarPlaceholder,
     val fallbackIcon: ImageVector? = null,
-    val fallbackIconTint: Color = HomeBalanceBarTint
+    val fallbackIconTint: Color = HomeBalanceBarTint,
+    val balanceAfter: String = "2 781.49 ₴"
 )
 
 @Composable
 private fun HomeOperationsCard(
     kind: HomeCarouselCardKind,
+    onOperationSelected: (HomeOperationUi) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val admin = LocalAppAdmin.current
     var allOpsOpen by remember { mutableStateOf(false) }
-    var selectedOperation by remember { mutableStateOf<HomeOperationUi?>(null) }
     val cardIndex = when (kind) {
         HomeCarouselCardKind.Black -> 0
         HomeCarouselCardKind.WhiteBlackEdge -> 1
@@ -2284,7 +2327,8 @@ private fun HomeOperationsCard(
                 receiptNumber = op.receiptNumber.ifBlank { "CHEA-EKE4-3M3A-A37P" },
                 receiptPdfUri = op.receiptPdfUri,
                 logoAssetName = HomeOperationTransferAssetName,
-                fallbackIcon = Icons.Filled.CreditCard
+                fallbackIcon = Icons.Filled.CreditCard,
+                balanceAfter = op.balanceAfter.ifBlank { "2 781.49 ₴" }
             )
         }
         .orEmpty()
@@ -2346,7 +2390,7 @@ private fun HomeOperationsCard(
                     logoCircleBackground = operation.logoCircleBackground,
                     fallbackIcon = operation.fallbackIcon,
                     fallbackIconTint = operation.fallbackIconTint,
-                    onClick = { selectedOperation = operation }
+                    onClick = { onOperationSelected(operation) }
                 )
                 if (index != topThreeOps.lastIndex) {
                     Spacer(modifier = Modifier.height(32.dp))
@@ -2358,13 +2402,10 @@ private fun HomeOperationsCard(
         HomeAllOperationsScreen(
             operations = opsToRender,
             onDismiss = { allOpsOpen = false },
-            onOperationClick = { selectedOperation = it }
-        )
-    }
-    selectedOperation?.let { operation ->
-        HomeOperationDetailScreen(
-            operation = operation,
-            onDismiss = { selectedOperation = null }
+            onOperationClick = {
+                allOpsOpen = false
+                onOperationSelected(it)
+            }
         )
     }
 }
@@ -2468,30 +2509,10 @@ private fun HomeAllOperationsScreen(
         )
     ) {
         SystemBarsColorEffect(
-            statusBarColor = Color(0xFF5D5ED6),
-            navigationBarColor = Color(0xFF252525),
+            statusBarColor = Color.Transparent,
+            navigationBarColor = Color.Transparent,
             decorBackgroundColor = Color(0xFF09090A)
         )
-        val dialogView = LocalView.current
-        DisposableEffect(dialogView) {
-            val window = (dialogView.parent as? DialogWindowProvider)?.window
-            val previousStatusBarColor = window?.statusBarColor
-            val previousNavigationBarColor = window?.navigationBarColor
-            window?.statusBarColor = Color(0xFF5D5ED6).toArgb()
-            window?.navigationBarColor = Color(0xFF252525).toArgb()
-            window?.setLayout(
-                android.view.WindowManager.LayoutParams.MATCH_PARENT,
-                android.view.WindowManager.LayoutParams.MATCH_PARENT
-            )
-            onDispose {
-                if (previousStatusBarColor != null) {
-                    window.statusBarColor = previousStatusBarColor
-                }
-                if (previousNavigationBarColor != null) {
-                    window.navigationBarColor = previousNavigationBarColor
-                }
-            }
-        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -2571,7 +2592,8 @@ private fun HomeAllOperationsScreen(
 @Composable
 private fun HomeOperationDetailScreen(
     operation: HomeOperationUi,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val transferBitmap = rememberCroppedAssetImageBitmap("$OperationsLogosPath/$HomeOperationTransferAssetName")
     val pencilBitmap = rememberAssetImageBitmap(HomeOperationDetailPencilAsset)
@@ -2591,54 +2613,20 @@ private fun HomeOperationDetailScreen(
     val summaryPanelHeight = if (commission != null) 232.dp else 220.dp
     var receiptOpen by remember(operation) { mutableStateOf(false) }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
+    BackHandler(onBack = onDismiss)
+    SystemBarsColorEffect(
+        statusBarColor = Color.Transparent,
+        navigationBarColor = Color.Transparent,
+        decorBackgroundColor = Color(0xFF1D1D1D)
+    )
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFF1D1D1D))
     ) {
-        SystemBarsColorEffect(
-            statusBarColor = Color(0xFF5D5ED6),
-            navigationBarColor = Color(0xFF262626),
-            decorBackgroundColor = Color(0xFF262626)
-        )
-        val dialogView = LocalView.current
-        DisposableEffect(dialogView) {
-            val window = (dialogView.parent as? DialogWindowProvider)?.window
-            val previousStatusBarColor = window?.statusBarColor
-            val previousNavigationBarColor = window?.navigationBarColor
-            window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-            window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color(0xFF262626).toArgb()))
-            window?.decorView?.setBackgroundColor(Color(0xFF262626).toArgb())
-            window?.statusBarColor = Color(0xFF5D5ED6).toArgb()
-            window?.navigationBarColor = Color(0xFF262626).toArgb()
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                window?.isStatusBarContrastEnforced = false
-                window?.isNavigationBarContrastEnforced = false
-            }
-            window?.setLayout(
-                android.view.WindowManager.LayoutParams.MATCH_PARENT,
-                android.view.WindowManager.LayoutParams.MATCH_PARENT
-            )
-            onDispose {
-                if (previousStatusBarColor != null) {
-                    window.statusBarColor = previousStatusBarColor
-                }
-                if (previousNavigationBarColor != null) {
-                    window.navigationBarColor = previousNavigationBarColor
-                }
-            }
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF262626))
-        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
             ) {
                 Spacer(modifier = Modifier.height(112.dp))
@@ -2702,7 +2690,7 @@ private fun HomeOperationDetailScreen(
                             Spacer(modifier = Modifier.height(16.dp))
                             HomeOperationDetailPlaceholderRow(tagsBitmap)
                             Spacer(modifier = Modifier.height(16.dp))
-                            HomeOperationDetailBalanceCard(walletBitmap)
+                            HomeOperationDetailBalanceCard(walletBitmap, operation.balanceAfter)
                             Spacer(modifier = Modifier.height(18.dp))
                             HomeOperationDetailSpentChart()
                             Spacer(modifier = Modifier.height(16.dp))
@@ -2778,12 +2766,12 @@ private fun HomeOperationDetailScreen(
                     }
                 }
             }
-        }
     }
     if (receiptOpen) {
         HomeOperationPdfReceiptScreen(
             operation = operation,
-            onDismiss = { receiptOpen = false }
+            onDismiss = { receiptOpen = false },
+            modifier = Modifier.fillMaxSize()
         )
     }
 }
@@ -2971,7 +2959,10 @@ private fun HomeOperationDetailPlaceholderRow(tagsBitmap: ImageBitmap?) {
 }
 
 @Composable
-private fun HomeOperationDetailBalanceCard(walletBitmap: ImageBitmap?) {
+private fun HomeOperationDetailBalanceCard(
+    walletBitmap: ImageBitmap?,
+    balanceAfter: String
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
@@ -3020,7 +3011,7 @@ private fun HomeOperationDetailBalanceCard(walletBitmap: ImageBitmap?) {
                     lineHeight = 18.sp
                 )
                 Text(
-                    text = "2 781.49 \u20B4",
+                    text = balanceAfter,
                     color = Color(0xFFE9E9E9),
                     fontSize = 18.sp,
                     lineHeight = 20.sp
@@ -3401,7 +3392,8 @@ private fun HomeOperationDetailReceiptCard(
 @Composable
 private fun HomeOperationPdfReceiptScreen(
     operation: HomeOperationUi,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val receiptNumber = operation.receiptNumber.ifBlank { "CHEA-EKE4-3M3A-A37P" }
     val context = LocalContext.current
@@ -3421,51 +3413,18 @@ private fun HomeOperationPdfReceiptScreen(
         showLoader = false
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        SystemBarsColorEffect(
-            statusBarColor = Color(0xFF262626),
-            navigationBarColor = Color(0xFF1D1D1D),
-            decorBackgroundColor = Color(0xFF1D1D1D)
-        )
-        val dialogView = LocalView.current
-        DisposableEffect(dialogView) {
-            val window = (dialogView.parent as? DialogWindowProvider)?.window
-            val previousStatusBarColor = window?.statusBarColor
-            val previousNavigationBarColor = window?.navigationBarColor
-            window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-            window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color(0xFF1D1D1D).toArgb()))
-            window?.decorView?.setBackgroundColor(Color(0xFF1D1D1D).toArgb())
-            window?.statusBarColor = Color(0xFF262626).toArgb()
-            window?.navigationBarColor = Color(0xFF1D1D1D).toArgb()
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                window?.isStatusBarContrastEnforced = false
-                window?.isNavigationBarContrastEnforced = false
-            }
-            window?.setLayout(
-                android.view.WindowManager.LayoutParams.MATCH_PARENT,
-                android.view.WindowManager.LayoutParams.MATCH_PARENT
-            )
-            onDispose {
-                if (previousStatusBarColor != null) {
-                    window.statusBarColor = previousStatusBarColor
-                }
-                if (previousNavigationBarColor != null) {
-                    window.navigationBarColor = previousNavigationBarColor
-                }
-            }
-        }
+    BackHandler(onBack = onDismiss)
+    SystemBarsColorEffect(
+        statusBarColor = Color.Transparent,
+        navigationBarColor = Color.Transparent,
+        decorBackgroundColor = Color(0xFF1D1D1D)
+    )
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF1D1D1D))
-        ) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFF1D1D1D))
+    ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -3590,7 +3549,6 @@ private fun HomeOperationPdfReceiptScreen(
                     }
                 }
             }
-        }
     }
 }
 

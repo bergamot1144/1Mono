@@ -108,6 +108,7 @@ data class CardOperationAdminConfig(
     val title: String = "Steam",
     val amount: String = "-100 ₴",
     val dateLabel: String = "Сьогодні",
+    val balanceAfter: String = "2 781.49 ₴",
     val hasCommission: Boolean = false,
     val commissionAmount: String = "0 ₴",
     val receiptNumber: String = "CHEA-EKE4-3M3A-A37P",
@@ -130,6 +131,7 @@ data class AppAdminState(
     val balanceMain: String = "102 144 ₴",
     val balanceWallet: String = "2 144 ₴",
     val balanceCredit: String = "100 000 ₴",
+    val cashbackAmount: String = "1 659 ₴",
     val cards: List<CardAdminConfig> = listOf(
         CardAdminConfig(
             name = "Чорна картка",
@@ -201,14 +203,16 @@ class AppAdminController(initial: AppAdminState = AppAdminState()) {
         accountFullName: String,
         balanceMain: String,
         balanceWallet: String,
-        balanceCredit: String
+        balanceCredit: String,
+        cashbackAmount: String
     ) {
         state = state.copy(
             mainFirstName = mainFirstName,
             accountFullName = accountFullName,
             balanceMain = balanceMain,
             balanceWallet = balanceWallet,
-            balanceCredit = balanceCredit
+            balanceCredit = balanceCredit,
+            cashbackAmount = cashbackAmount
         )
     }
 

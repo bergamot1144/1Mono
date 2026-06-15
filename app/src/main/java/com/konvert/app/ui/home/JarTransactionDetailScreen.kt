@@ -109,8 +109,8 @@ internal fun JarTransactionDetailScreen(
     val isLinkTransaction = payload.badge.contains("посил", ignoreCase = true)
     val headerBlue = JarTxnDetailHeaderBlue
     SystemBarsColorEffect(
-        statusBarColor = headerBlue,
-        navigationBarColor = JarTxnDetailCardBg,
+        statusBarColor = Color.Transparent,
+        navigationBarColor = Color.Transparent,
         decorBackgroundColor = JarTxnDetailCardBg
     )
     val density = LocalDensity.current
